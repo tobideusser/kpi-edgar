@@ -8,24 +8,35 @@ from typing import Tuple, List, Dict
 logger = logging.getLogger(__name__)
 
 ENTITY_PREFIXES = ["us-gaap"]
-ENTITY_FORMATS = ["ixt:numdotdecimal"]
+ENTITY_FORMATS = ["ixt:numdotdecimal", "ix:nonFraction"]
 
 
 def recursive_text_extract(
         et: ElementTree,
         entity_prefixes: List[str],
-        entity_formats: List[str]
+        entity_formats: List[str],
+        storage_gaap: Dict,
+        storage_values: Dict
 ) -> List:
     text_parts = []
     for node in et:
         text_part = {
             "text": node.text if node.text else "",
-            "sub": recursive_text_extract(node, entity_prefixes=entity_prefixes, entity_formats=entity_formats)
+            "sub": recursive_text_extract(
+                node,
+                entity_prefixes=entity_prefixes,
+                entity_formats=entity_formats,
+                storage_gaap=storage_gaap,
+                storage_values=storage_values
+            )
         }
 
         if any(entity_prefix == node.attrib.get("name", "") for entity_prefix in entity_prefixes) or \
                 any(entity_format == node.attrib.get("format", "") for entity_format in entity_formats):
             text_part["entity"] = node.attrib
+            text_part["entity"]["gaap"] = storage_gaap.get(text_part["entity"]["name"], None)
+            if text_part["entity"]["gaap"] is not None:
+                text_part["entity"]["value"] = storage_values.get(text_part["entity"]["gaap"]["master_id"], None)
         else:
             text_part["entity"] = None
         text_part["tail"] = node.tail if node.tail else ""
@@ -36,31 +47,31 @@ def recursive_text_extract(
     return text_parts
 
 
-def recursive_text_extract_flattened(
-        et: ElementTree,
-        entity_prefixes: List[str],
-        entity_list: List[Dict],
-        text: str = ""
-) -> Tuple[str, List[Dict]]:
-    for node in et:
-        entity_start = len(text)
-        text += node.text if node.text else ""
-        text, entity_list = recursive_text_extract_flattened(
-            node,
-            entity_prefixes=entity_prefixes,
-            text=text,
-            entity_list=entity_list
-        )
-        if any(entity_prefix in node.attrib.get("name", "") for entity_prefix in entity_prefixes):
-            entity_list.append({
-                "start": entity_start,
-                "end": len(text)
-            })
-            entity_list[-1].update(node.attrib)
-        text += node.tail if node.tail else ""
-        if node.tag[-4:] == "span":
-            text += "\n"
-    return text, entity_list
+# def recursive_text_extract_flattened(
+#         et: ElementTree,
+#         entity_prefixes: List[str],
+#         entity_list: List[Dict],
+#         text: str = ""
+# ) -> Tuple[str, List[Dict]]:
+#     for node in et:
+#         entity_start = len(text)
+#         text += node.text if node.text else ""
+#         text, entity_list = recursive_text_extract_flattened(
+#             node,
+#             entity_prefixes=entity_prefixes,
+#             text=text,
+#             entity_list=entity_list
+#         )
+#         if any(entity_prefix in node.attrib.get("name", "") for entity_prefix in entity_prefixes):
+#             entity_list.append({
+#                 "start": entity_start,
+#                 "end": len(text)
+#             })
+#             entity_list[-1].update(node.attrib)
+#         text += node.tail if node.tail else ""
+#         if node.tag[-4:] == "span":
+#             text += "\n"
+#     return text, entity_list
 
 
 def main():
@@ -206,12 +217,18 @@ def main():
                     "sub": recursive_text_extract(
                         node,
                         entity_prefixes=ENTITY_PREFIXES + ["aapl"],
-                        entity_formats=ENTITY_FORMATS
+                        entity_formats=ENTITY_FORMATS,
+                        storage_gaap=storage_gaap,
+                        storage_values=storage_values
                     )
                 }
 
-                if any(entity_prefix in node.attrib.get("name", "") for entity_prefix in ENTITY_PREFIXES):
+                if any(entity_prefix in node.attrib.get("name", "") for entity_prefix in ENTITY_PREFIXES) or \
+                        any(entity_format == node.attrib.get("format", "") for entity_format in ENTITY_FORMATS):
                     text["entity"] = node.attrib
+                    text["entity"]["gaap"] = storage_gaap.get(text["entity"]["name"], None)
+                    if text["entity"]["gaap"] is not None:
+                        text["entity"]["value"] = storage_values.get(text["entity"]["gaap"]["master_id"], None)
                 else:
                     text["entity"] = None
                 text["tail"] = node.tail if node.tail else ""
