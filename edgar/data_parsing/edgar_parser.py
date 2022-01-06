@@ -5,8 +5,9 @@ import os
 import re
 import unicodedata
 import xml.etree.ElementTree as ElementTree
-from lxml import html as lh
 from typing import List, Dict, Optional
+
+from lxml import html as lh
 
 logger = logging.getLogger(__name__)
 
