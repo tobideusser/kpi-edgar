@@ -74,6 +74,12 @@ def recursive_text_extract(
 #     return text, entity_list
 
 
+def extract_company_data(
+
+):
+    pass
+
+
 def main():
     import time
 
