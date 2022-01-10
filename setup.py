@@ -1,9 +1,11 @@
 from setuptools import setup, find_packages
 
+# todo: clean up the requirements, they are from the old KRE repo
+
 setup(
     name="edgar",
     version="0.1",
-    author="Tobias Deusser",
+    author="Tobias Deusser, Lars Hillebrand",
     packages=find_packages(),
     install_requires=["aim",
                       "babel",

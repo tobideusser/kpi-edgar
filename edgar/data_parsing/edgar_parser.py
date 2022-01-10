@@ -234,97 +234,81 @@ class EdgarParser:
                     raw_content = re.sub("<DOCUMENT>\n<TYPE>EXCEL.*?</DOCUMENT>", "", raw_content, flags=re.DOTALL)
                     raw_content = re.sub("<DOCUMENT>\n<TYPE>XML.*?</DOCUMENT>", "", raw_content, flags=re.DOTALL)
 
-                    raw_content = html.unescape(raw_content)
+                    # todo: unescape the html data, because doing it before the xml parsing will break it
+                    # raw_content = html.unescape(raw_content)
                     raw_content = unicodedata.normalize("NFKC", raw_content)
 
-                    root = lh.fromstring(raw_content)
+                    # this is the regex solution, probably more prone to errors, but lxml seems to be bugged when
+                    # converting back to string
+
+                    # get all documents
+                    all_docs = re.findall(
+                        r"(?i)(?<=<DOCUMENT>)(.*?)(?=</DOCUMENT>)",
+                        string=raw_content,
+                        flags=re.DOTALL
+                    )
+
+                    # dict to store the content split into relevant sections
                     split_content = dict()
-                    for elem in root.xpath("//document"):
-                        type_ = elem.xpath(".//type")[0]
-                        # file_name = elem.xpath(".//filename")[0]
-                        # seq = elem.xpath(".//sequence")[0]
 
-                        # print(type_.text)
-                        # print(file_name.text)
-                        # print(seq.text)
-                        if "10-K" in " ".join(type_.text.split()):
-                            xbrl_root = elem.xpath(".//xbrl")[0]
-                            # drop all tags (keep content) that are not allowed
-                            # for node in xbrl_root.iter():
-                            #     if node.tag not in allowed_tags:
-                            #         node.drop_tag()
+                    # loop through all documents
+                    for doc in all_docs:
 
-                            for node in xbrl_root.iter():
-                                if node.tag and node.attrib:
-                                    if node.tag not in ["table", "td", "span"]:
-                                        keys = node.attrib.keys()
-                                        for key in keys:
-                                            node.attrib.pop(key)
+                        # get the type
+                        doc_type = re.search(
+                            r"(?i)(?<=<TYPE>)(.*?)(?=<)",
+                            string=doc,
+                            flags=re.DOTALL
+                        )[0]
 
-                                    else:
-                                        if "style" in node.attrib:
-                                            node.attrib.pop("style")
-                                        if "id" in node.attrib:
-                                            node.attrib.pop("id")
-                                        if "contextref" in node.attrib:
-                                            node.attrib.pop("contextref")
-                                        if "valign" in node.attrib:
-                                            node.attrib.pop("valign")
-
-                            # for child in xbrl_root.getchildren():
-                            #     if isinstance(child, lh.HtmlElement):
-                            #         split_content["10-K"] = lh.tostring(child, encoding=str)
-                            # split_content["10-K"] = lh.tostring(xbrl_root, encoding=str)
+                        if "10-K" in doc_type.upper():
 
                             split_content["10-K"] = re.search(
-                                r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                                string=lh.tostring(xbrl_root, encoding=str),
+                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                string=doc,
                                 flags=re.DOTALL
                             )[0]
-                            split_content["10-K"] = split_content["10-K"][1:] if split_content["10-K"][0] == "\n" else \
-                                split_content["10-K"]
+                            # remove leading linebreaks if they exist
+                            while split_content["10-K"][0] == "\n":
+                                split_content["10-K"] = split_content["10-K"][1:]
 
-                        elif "CAL" in type_.text.upper():
-                            xbrl_root = elem.xpath(".//xbrl")[0]
-                            # for child in xbrl_root.getchildren():
-                            #     if isinstance(child, lh.HtmlElement):
-                            #         split_content["CAL"] = lh.tostring(child, encoding=str)
-                            # split_content["CAL"] = lh.tostring(xbrl_root, encoding=str)
+                        elif "CAL" in doc_type.upper():
+
                             split_content["CAL"] = re.search(
-                                r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                                string=lh.tostring(xbrl_root, encoding=str),
+                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                string=doc,
                                 flags=re.DOTALL
                             )[0]
-                            split_content["CAL"] = split_content["CAL"][1:] if split_content["CAL"][0] == "\n" else \
-                                split_content["CAL"]
-                        elif "LAB" in type_.text.upper():
-                            xbrl_root = elem.xpath(".//xbrl")[0]
-                            # for child in xbrl_root.getchildren():
-                            #     if isinstance(child, lh.HtmlElement):
-                            #         split_content["LAB"] = lh.tostring(child, encoding=str)
-                            # split_content["LAB"] = lh.tostring(xbrl_root, encoding=str)
+                            # remove leading linebreaks if they exist
+                            while split_content["CAL"][0] == "\n":
+                                split_content["CAL"] = split_content["CAL"][1:]
+
+                        elif "LAB" in doc_type.upper():
+
                             split_content["LAB"] = re.search(
-                                r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                                string=lh.tostring(xbrl_root, encoding=str),
+                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                string=doc,
                                 flags=re.DOTALL
                             )[0]
-                            split_content["LAB"] = split_content["LAB"][1:] if split_content["LAB"][0] == "\n" else \
-                                split_content["LAB"]
-                        elif "DEF" in type_.text.upper():
-                            xbrl_root = elem.xpath(".//xbrl")[0]
-                            # for child in xbrl_root.getchildren():
-                            #     if isinstance(child, lh.HtmlElement):
-                            #         split_content["DEF"] = lh.tostring(child, encoding=str)
-                            # split_content["DEF"] = lh.tostring(xbrl_root, encoding=str)
+                            # remove leading linebreaks if they exist
+                            while split_content["LAB"][0] == "\n":
+                                split_content["LAB"] = split_content["LAB"][1:]
+
+                        elif "DEF" in doc_type.upper():
+
                             split_content["DEF"] = re.search(
-                                r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                                string=lh.tostring(xbrl_root, encoding=str),
+                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                string=doc,
                                 flags=re.DOTALL
                             )[0]
-                            split_content["DEF"] = split_content["DEF"][1:] if split_content["DEF"][0] == "\n" else \
-                                split_content["DEF"]
+                            # remove leading linebreaks if they exist
+                            while split_content["DEF"][0] == "\n":
+                                split_content["DEF"] = split_content["DEF"][1:]
+
+                    # if condition: only parse whole edgar entry if the four relevant reports were found
                     if all(a in list(split_content.keys()) for a in ["10-K", "CAL", "DEF", "LAB"]):
                         unique_dict_key = "_".join(os.path.normpath(subdir).split(os.path.sep)[-2:]) + "_" + file
+                        print(len(split_content["10-K"]))
                         parsed_data[unique_dict_key] = self._parse_edgar_entry(
                             file_htm=split_content["10-K"],
                             file_cal=split_content["CAL"],
@@ -332,6 +316,114 @@ class EdgarParser:
                             file_def=split_content["DEF"]
                         )
                         i += 1
+
+                    # package lxml seems to be bugged when converting back to string (the output is an invalid xml file)
+                    # below is the old legacy code
+                    # todo: remove or fix
+                    # root = lh.fromstring(raw_content)
+                    # split_content = dict()
+                    # for elem in root.xpath("//document"):
+                    #     type_ = elem.xpath(".//type")[0]
+                    #     # file_name = elem.xpath(".//filename")[0]
+                    #     # seq = elem.xpath(".//sequence")[0]
+                    #
+                    #     # print(type_.text)
+                    #     # print(file_name.text)
+                    #     # print(seq.text)
+                    #     if "10-K" in " ".join(type_.text.split()):
+                    #         xbrl_root = elem.xpath(".//xbrl")[0]
+                    #         # drop all tags (keep content) that are not allowed
+                    #         # for node in xbrl_root.iter():
+                    #         #     if node.tag not in allowed_tags:
+                    #         #         node.drop_tag()
+                    #
+                    #         # for node in xbrl_root.iter():
+                    #         #     if node.tag and node.attrib:
+                    #         #         if node.tag not in ["table", "td", "span"]:
+                    #         #             keys = node.attrib.keys()
+                    #         #             for key in keys:
+                    #         #                 node.attrib.pop(key)
+                    #         #
+                    #         #         else:
+                    #         #             if "style" in node.attrib:
+                    #         #                 node.attrib.pop("style")
+                    #         #             if "id" in node.attrib:
+                    #         #                 node.attrib.pop("id")
+                    #         #             if "contextref" in node.attrib:
+                    #         #                 node.attrib.pop("contextref")
+                    #         #             if "valign" in node.attrib:
+                    #         #                 node.attrib.pop("valign")
+                    #
+                    #         # for child in xbrl_root.getchildren():
+                    #         #     if isinstance(child, lh.HtmlElement):
+                    #         #         split_content["10-K"] = lh.tostring(child, encoding=str)
+                    #         # split_content["10-K"] = lh.tostring(xbrl_root, encoding="unicode", method='html')
+                    #         split_content["10-K"] = re.search(
+                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
+                    #             string=lh.tostring(xbrl_root, encoding="unicode", method="html", with_tail=False),
+                    #             flags=re.DOTALL
+                    #         )[0]
+                    #         # split_content["10-K"] = re.sub(
+                    #         #     pattern="<br>",
+                    #         #     repl="</br>",
+                    #         #     string=re.search(
+                    #         #         r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
+                    #         #         string=lh.tostring(xbrl_root, encoding=str),
+                    #         #         flags=re.DOTALL
+                    #         #     )[0]
+                    #         # )
+                    #         split_content["10-K"] = split_content["10-K"][1:] if split_content["10-K"][0] == "\n" else \
+                    #             split_content["10-K"]
+                    #
+                    #     elif "CAL" in type_.text.upper():
+                    #         xbrl_root = elem.xpath(".//xbrl")[0]
+                    #         # for child in xbrl_root.getchildren():
+                    #         #     if isinstance(child, lh.HtmlElement):
+                    #         #         split_content["CAL"] = lh.tostring(child, encoding=str)
+                    #         # split_content["CAL"] = lh.tostring(xbrl_root, encoding=str)
+                    #         split_content["CAL"] = re.search(
+                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
+                    #             string=lh.tostring(xbrl_root, encoding=str),
+                    #             flags=re.DOTALL
+                    #         )[0]
+                    #         split_content["CAL"] = split_content["CAL"][1:] if split_content["CAL"][0] == "\n" else \
+                    #             split_content["CAL"]
+                    #     elif "LAB" in type_.text.upper():
+                    #         xbrl_root = elem.xpath(".//xbrl")[0]
+                    #         # for child in xbrl_root.getchildren():
+                    #         #     if isinstance(child, lh.HtmlElement):
+                    #         #         split_content["LAB"] = lh.tostring(child, encoding=str)
+                    #         # split_content["LAB"] = lh.tostring(xbrl_root, encoding=str)
+                    #         split_content["LAB"] = re.search(
+                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
+                    #             string=lh.tostring(xbrl_root, encoding=str),
+                    #             flags=re.DOTALL
+                    #         )[0]
+                    #         split_content["LAB"] = split_content["LAB"][1:] if split_content["LAB"][0] == "\n" else \
+                    #             split_content["LAB"]
+                    #     elif "DEF" in type_.text.upper():
+                    #         xbrl_root = elem.xpath(".//xbrl")[0]
+                    #         # for child in xbrl_root.getchildren():
+                    #         #     if isinstance(child, lh.HtmlElement):
+                    #         #         split_content["DEF"] = lh.tostring(child, encoding=str)
+                    #         # split_content["DEF"] = lh.tostring(xbrl_root, encoding=str)
+                    #         split_content["DEF"] = re.search(
+                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
+                    #             string=lh.tostring(xbrl_root, encoding=str),
+                    #             flags=re.DOTALL
+                    #         )[0]
+                    #         split_content["DEF"] = split_content["DEF"][1:] if split_content["DEF"][0] == "\n" else \
+                    #             split_content["DEF"]
+                    # if all(a in list(split_content.keys()) for a in ["10-K", "CAL", "DEF", "LAB"]):
+                    #     unique_dict_key = "_".join(os.path.normpath(subdir).split(os.path.sep)[-2:]) + "_" + file
+                    #     print(len(split_content["10-K"]))
+                    #     parsed_data[unique_dict_key] = self._parse_edgar_entry(
+                    #         file_htm=split_content["10-K"],
+                    #         file_cal=split_content["CAL"],
+                    #         file_lab=split_content["LAB"],
+                    #         file_def=split_content["DEF"]
+                    #     )
+                    #     i += 1
         return parsed_data
 
 
@@ -340,7 +432,7 @@ def main():
         entity_prefixes=["us-gaap"],
         entity_formats=["ixt:numdotdecimal", "ix:nonFraction"],
         debug_size=10,
-        path_to_data_folders="/cluster/edgar_filings"
+        path_to_data_folders="/cluster/debug_edgar_filings"
     )
     ep.parse_data_folder()
 
