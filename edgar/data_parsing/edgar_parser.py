@@ -7,7 +7,7 @@ import unicodedata
 import xml.etree.ElementTree as ElementTree
 from typing import List, Dict, Optional
 
-from lxml import html as lh
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ class EdgarParser:
             tag = re.sub("(?={)(.*)(?<=})", "", node.tag)
             attributes = node.attrib
             if tag == "nonNumeric":
-                print(tag, attributes)
+                # print(tag, attributes)
                 name = attributes.get("name")
                 if "textblock" in name.lower():
                     # text = child.text if child.text else ""
@@ -220,6 +220,7 @@ class EdgarParser:
     def parse_data_folder(self):
         parsed_data = dict()
         i = 0
+        pbar = tqdm(desc="Parsing txt files")
         for subdir, dirs, files in os.walk(self.path_to_data_folders):
             if self.debug_size and self.debug_size <= i:
                 break
@@ -308,7 +309,7 @@ class EdgarParser:
                     # if condition: only parse whole edgar entry if the four relevant reports were found
                     if all(a in list(split_content.keys()) for a in ["10-K", "CAL", "DEF", "LAB"]):
                         unique_dict_key = "_".join(os.path.normpath(subdir).split(os.path.sep)[-2:]) + "_" + file
-                        print(len(split_content["10-K"]))
+                        # print(len(split_content["10-K"]))
                         parsed_data[unique_dict_key] = self._parse_edgar_entry(
                             file_htm=split_content["10-K"],
                             file_cal=split_content["CAL"],
@@ -316,6 +317,7 @@ class EdgarParser:
                             file_def=split_content["DEF"]
                         )
                         i += 1
+                        pbar.update(1)
 
                     # package lxml seems to be bugged when converting back to string (the output is an invalid xml file)
                     # below is the old legacy code
