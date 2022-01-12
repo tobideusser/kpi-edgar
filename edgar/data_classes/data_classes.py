@@ -96,10 +96,41 @@ class Cell:
 
 
 @dataclass
+class Sentence:
+    pass
+
+
+@dataclass
+class EdgarEntity:
+    id_: str
+    name: str
+    start: int
+    end: int
+    value: str
+    context_ref: Optional[str] = None
+    continued_at: Optional[str] = None
+    escape: Optional[bool] = None
+    gaap_id: Optional[str] = None
+    gaap_master_id: Optional[str] = None
+    label_id: Optional[str] = None
+    location_id: Optional[str] = None
+    us_gaap_id: Optional[str] = None
+    us_gaap_value: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        return cls(**d)
+
+    def to_dict(self) -> Dict:
+        d = self.__dict__
+        return d
+
+
+@dataclass
 class Segment:
     id_: int
-    tag: str
     value: str
+    tag: Optional[str] = None
 
     @classmethod
     @abstractmethod
@@ -109,6 +140,14 @@ class Segment:
     @abstractmethod
     def to_dict(self) -> Dict:
         raise NotImplementedError
+
+
+@dataclass
+class Paragraph(Segment):
+    sentences: List[Sentence] = field(default_factory=list)
+    textblock_entity: Optional[EdgarEntity] = None
+    edgar_entities: List[EdgarEntity] = field(default_factory=list)
+    # todo: add to and from dict to this and other functions
 
 
 @dataclass
@@ -332,6 +371,19 @@ class Table(Segment):
                     cell_id += 1
 
         return cls(cells=cells, tag='table', id_=0, value=html.unescape(lh.tostring(table_tag).decode()))
+
+
+@dataclass
+class Document:
+    id_: str
+    segments: List[Segment]
+
+
+@dataclass
+class Corpus:
+    documents: List[Document] = field(default_factory=list)
+    name: Optional[str] = None
+
 
 # def table_to_2d(table_tag):
 #     rowspans = []  # track pending rowspans

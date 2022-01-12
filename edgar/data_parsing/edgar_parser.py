@@ -5,9 +5,11 @@ import os
 import re
 import unicodedata
 import xml.etree.ElementTree as ElementTree
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple, Union
 
 from tqdm import tqdm
+
+from edgar.data_classes.data_classes import EdgarEntity, Paragraph, Document, Corpus
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ class EdgarParser:
         text_parts = []
         for node in et:
             text_part = {
-                "text": html.unescape(node.text) if node.text else "",
+                "text": html.unescape(node.text).strip().replace("\xa0", " ") if node.text else "",
                 "sub": self._recursive_text_extract(
                     et=node,
                     storage_gaap=storage_gaap,
@@ -50,7 +52,7 @@ class EdgarParser:
                     text_part["entity"]["value"] = storage_values.get(text_part["entity"]["gaap"]["master_id"], None)
             else:
                 text_part["entity"] = None
-            text_part["tail"] = html.unescape(node.tail) if node.tail else ""
+            text_part["tail"] = html.unescape(node.tail).strip().replace("\xa0", " ") if node.tail else ""
             if text_part["text"] != "" or text_part["tail"] != "" or text_part["entity"] is not None:
                 text_parts.append(text_part)
             elif len(text_part["sub"]) > 0:
@@ -197,7 +199,7 @@ class EdgarParser:
                     # })
                     # entity_list[-1].update(attributes)
                     text = {
-                        "text": html.unescape(node.text) if node.text else "",
+                        "text": html.unescape(node.text).strip().replace("\xa0", " ") if node.text else "",
                         "sub": self._recursive_text_extract(
                             node,
                             storage_gaap=storage_gaap,
@@ -213,9 +215,113 @@ class EdgarParser:
                             text["entity"]["value"] = storage_values.get(text["entity"]["gaap"]["master_id"], None)
                     else:
                         text["entity"] = None
-                    text["tail"] = html.unescape(node.tail) if node.tail else ""
+                    text["tail"] = html.unescape(node.tail).strip().replace("\xa0", " ") if node.tail else ""
                     doc.append(text)
         return doc
+
+    @staticmethod
+    def recursive_transform_subparts(
+            sub: List[Union[Dict, List]],
+            text: str = "",
+            entities: Optional[List[EdgarEntity]] = None
+    ) -> Tuple[str, List[EdgarEntity]]:
+
+        if entities is None:
+            entities = []
+
+        for text_part in sub:
+
+            if isinstance(text_part, dict):
+                # if dict, extract the information stored therein
+
+                start = len(text)
+                text += text_part["text"] + (" " if text_part["text"] else "")
+
+                if text_part["entity"]:
+                    entities.append(EdgarEntity(
+                        start=start,
+                        end=len(text),
+                        id_=text_part["entity"]["id"],
+                        name=text_part["entity"]["name"],
+                        value=text_part["text"],
+                        context_ref=text_part["entity"].get("contextRef", None),
+                        continued_at=text_part["entity"].get("continuedAt", None),
+                        escape=bool(text_part["entity"].get("continuedAt", None)),
+                        gaap_id=text_part["entity"]["gaap"].get("id", None),
+                        gaap_master_id=text_part["entity"]["gaap"].get("master_id", None),
+                        label_id=text_part["entity"]["value"].get("label_id", None),
+                        location_id=text_part["entity"]["value"].get("location_id", None),
+                        us_gaap_id=text_part["entity"]["value"].get("us_gaap_id", None),
+                        us_gaap_value=text_part["entity"]["value"].get("us_gaap_value", None)
+                    ))
+
+                if text_part["sub"]:
+                    text, entities = EdgarParser.recursive_transform_subparts(
+                        sub=text_part["sub"],
+                        text=text,
+                        entities=entities
+                    )
+                text += text_part["tail"] + (" " if text_part["tail"] else "")
+
+            else:
+                # assume text_part is a list, pass the whole list to recursive_transform_subparts() to loop through
+                # it again
+                text, entities = EdgarParser.recursive_transform_subparts(
+                    sub=text_part,
+                    text=text,
+                    entities=entities
+                )
+        return text, entities
+
+    @staticmethod
+    def transform_to_dataclasses(parsed_data: Dict) -> Corpus:
+
+        documents = []
+        for key, doc in parsed_data.items():
+
+            i = 0
+            segments = []
+            for seg in doc:
+
+                # compress all subparts into one string
+                text, entities = EdgarParser.recursive_transform_subparts(seg["sub"])
+                text = text[:-1] if len(text) > 0 and text[-1] == " " else text
+
+                # check for a EdgarEntity, i.e. a entity / type of the text block
+                if seg["entity"]:
+                    textblock_entity = EdgarEntity(
+                        value=text,
+                        name=seg["entity"]["name"],
+                        id_=seg["entity"]["id"],
+                        start=0,
+                        end=len(text),
+                        context_ref=seg["entity"].get("contextRef", None),
+                        continued_at=seg["entity"].get("continuedAt", None),
+                        escape=bool(seg["entity"].get("continuedAt", None)),
+                        gaap_id=seg["entity"]["gaap"].get("id", None),
+                        gaap_master_id=seg["entity"]["gaap"].get("master_id", None),
+                        label_id=seg["entity"]["value"].get("label_id", None),
+                        location_id=seg["entity"]["value"].get("location_id", None),
+                        us_gaap_id=seg["entity"]["value"].get("us_gaap_id", None),
+                        us_gaap_value=seg["entity"]["value"].get("us_gaap_value", None)
+                    )
+                else:
+                    textblock_entity = None
+                segments.append(Paragraph(
+                    id_=i,
+                    value=text,
+                    textblock_entity=textblock_entity,
+                    edgar_entities=entities
+                ))
+                i += 1
+            documents.append(Document(
+                id_=key,
+                segments=segments
+            ))
+
+        corpus = Corpus(documents=documents)
+
+        return corpus
 
     def parse_data_folder(self):
         parsed_data = dict()
@@ -235,8 +341,6 @@ class EdgarParser:
                     raw_content = re.sub("<DOCUMENT>\n<TYPE>EXCEL.*?</DOCUMENT>", "", raw_content, flags=re.DOTALL)
                     raw_content = re.sub("<DOCUMENT>\n<TYPE>XML.*?</DOCUMENT>", "", raw_content, flags=re.DOTALL)
 
-                    # todo: unescape the html data, because doing it before the xml parsing will break it
-                    # raw_content = html.unescape(raw_content)
                     raw_content = unicodedata.normalize("NFKC", raw_content)
 
                     # this is the regex solution, probably more prone to errors, but lxml seems to be bugged when
@@ -319,114 +423,9 @@ class EdgarParser:
                         i += 1
                         pbar.update(1)
 
-                    # package lxml seems to be bugged when converting back to string (the output is an invalid xml file)
-                    # below is the old legacy code
-                    # todo: remove or fix
-                    # root = lh.fromstring(raw_content)
-                    # split_content = dict()
-                    # for elem in root.xpath("//document"):
-                    #     type_ = elem.xpath(".//type")[0]
-                    #     # file_name = elem.xpath(".//filename")[0]
-                    #     # seq = elem.xpath(".//sequence")[0]
-                    #
-                    #     # print(type_.text)
-                    #     # print(file_name.text)
-                    #     # print(seq.text)
-                    #     if "10-K" in " ".join(type_.text.split()):
-                    #         xbrl_root = elem.xpath(".//xbrl")[0]
-                    #         # drop all tags (keep content) that are not allowed
-                    #         # for node in xbrl_root.iter():
-                    #         #     if node.tag not in allowed_tags:
-                    #         #         node.drop_tag()
-                    #
-                    #         # for node in xbrl_root.iter():
-                    #         #     if node.tag and node.attrib:
-                    #         #         if node.tag not in ["table", "td", "span"]:
-                    #         #             keys = node.attrib.keys()
-                    #         #             for key in keys:
-                    #         #                 node.attrib.pop(key)
-                    #         #
-                    #         #         else:
-                    #         #             if "style" in node.attrib:
-                    #         #                 node.attrib.pop("style")
-                    #         #             if "id" in node.attrib:
-                    #         #                 node.attrib.pop("id")
-                    #         #             if "contextref" in node.attrib:
-                    #         #                 node.attrib.pop("contextref")
-                    #         #             if "valign" in node.attrib:
-                    #         #                 node.attrib.pop("valign")
-                    #
-                    #         # for child in xbrl_root.getchildren():
-                    #         #     if isinstance(child, lh.HtmlElement):
-                    #         #         split_content["10-K"] = lh.tostring(child, encoding=str)
-                    #         # split_content["10-K"] = lh.tostring(xbrl_root, encoding="unicode", method='html')
-                    #         split_content["10-K"] = re.search(
-                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                    #             string=lh.tostring(xbrl_root, encoding="unicode", method="html", with_tail=False),
-                    #             flags=re.DOTALL
-                    #         )[0]
-                    #         # split_content["10-K"] = re.sub(
-                    #         #     pattern="<br>",
-                    #         #     repl="</br>",
-                    #         #     string=re.search(
-                    #         #         r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                    #         #         string=lh.tostring(xbrl_root, encoding=str),
-                    #         #         flags=re.DOTALL
-                    #         #     )[0]
-                    #         # )
-                    #         split_content["10-K"] = split_content["10-K"][1:] if split_content["10-K"][0] == "\n" else \
-                    #             split_content["10-K"]
-                    #
-                    #     elif "CAL" in type_.text.upper():
-                    #         xbrl_root = elem.xpath(".//xbrl")[0]
-                    #         # for child in xbrl_root.getchildren():
-                    #         #     if isinstance(child, lh.HtmlElement):
-                    #         #         split_content["CAL"] = lh.tostring(child, encoding=str)
-                    #         # split_content["CAL"] = lh.tostring(xbrl_root, encoding=str)
-                    #         split_content["CAL"] = re.search(
-                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                    #             string=lh.tostring(xbrl_root, encoding=str),
-                    #             flags=re.DOTALL
-                    #         )[0]
-                    #         split_content["CAL"] = split_content["CAL"][1:] if split_content["CAL"][0] == "\n" else \
-                    #             split_content["CAL"]
-                    #     elif "LAB" in type_.text.upper():
-                    #         xbrl_root = elem.xpath(".//xbrl")[0]
-                    #         # for child in xbrl_root.getchildren():
-                    #         #     if isinstance(child, lh.HtmlElement):
-                    #         #         split_content["LAB"] = lh.tostring(child, encoding=str)
-                    #         # split_content["LAB"] = lh.tostring(xbrl_root, encoding=str)
-                    #         split_content["LAB"] = re.search(
-                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                    #             string=lh.tostring(xbrl_root, encoding=str),
-                    #             flags=re.DOTALL
-                    #         )[0]
-                    #         split_content["LAB"] = split_content["LAB"][1:] if split_content["LAB"][0] == "\n" else \
-                    #             split_content["LAB"]
-                    #     elif "DEF" in type_.text.upper():
-                    #         xbrl_root = elem.xpath(".//xbrl")[0]
-                    #         # for child in xbrl_root.getchildren():
-                    #         #     if isinstance(child, lh.HtmlElement):
-                    #         #         split_content["DEF"] = lh.tostring(child, encoding=str)
-                    #         # split_content["DEF"] = lh.tostring(xbrl_root, encoding=str)
-                    #         split_content["DEF"] = re.search(
-                    #             r"(?<=<xbrl>)(.*?)(?=</xbrl>)",
-                    #             string=lh.tostring(xbrl_root, encoding=str),
-                    #             flags=re.DOTALL
-                    #         )[0]
-                    #         split_content["DEF"] = split_content["DEF"][1:] if split_content["DEF"][0] == "\n" else \
-                    #             split_content["DEF"]
-                    # if all(a in list(split_content.keys()) for a in ["10-K", "CAL", "DEF", "LAB"]):
-                    #     unique_dict_key = "_".join(os.path.normpath(subdir).split(os.path.sep)[-2:]) + "_" + file
-                    #     print(len(split_content["10-K"]))
-                    #     parsed_data[unique_dict_key] = self._parse_edgar_entry(
-                    #         file_htm=split_content["10-K"],
-                    #         file_cal=split_content["CAL"],
-                    #         file_lab=split_content["LAB"],
-                    #         file_def=split_content["DEF"]
-                    #     )
-                    #     i += 1
-        return parsed_data
+        transformed_data = self.transform_to_dataclasses(parsed_data=parsed_data)
+
+        return transformed_data
 
 
 def main():
