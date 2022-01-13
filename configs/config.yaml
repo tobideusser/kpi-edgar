@@ -1,0 +1,13 @@
+# Base directory to store all task outputs
+base_dir: '/scratch/data/edgar/debug_2/'
+
+################
+# DATA PARSING #
+################
+
+DataParsing:
+  path_to_data_folders: "/cluster/debug_edgar_filings"
+  entity_prefixes: ["us-gaap"]
+  entity_formats: ["ixt:numdotdecimal", "ix:nonFraction"]
+  dataset_name: "EDGAR"
+  debug_size: 10

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('--config',
-                        default=os.path.join(project_path, 'configs', 'kpi_relation_extraction', 'config.yaml'),
+                        default=os.path.join(project_path, 'configs', 'config.yaml'),
                         type=str,
                         help="Path to config")
     parser.add_argument('--cuda-ids',

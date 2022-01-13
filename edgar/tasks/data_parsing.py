@@ -15,7 +15,7 @@ class DataParsing(Task):
 
     def __init__(
             self,
-            data_folder: str,
+            # data_folder: str,
             entity_prefixes: List[str],
             entity_formats: List[str],
             path_to_data_folders: str,
@@ -28,7 +28,7 @@ class DataParsing(Task):
         # config params
         self.dataset_name = dataset_name
         self.debug_size = debug_size
-        self.data_folder = data_folder
+        # self.data_folder = data_folder
         self.entity_prefixes = entity_prefixes
         self.entity_formats = entity_formats
         self.path_to_data_folders = path_to_data_folders
