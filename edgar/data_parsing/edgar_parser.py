@@ -7,9 +7,10 @@ import unicodedata
 import xml.etree.ElementTree as ElementTree
 from typing import List, Dict, Optional, Tuple, Union
 
+from lxml import html as lh
 from tqdm import tqdm
 
-from edgar.data_classes.data_classes import EdgarEntity, Paragraph, Document, Corpus
+from edgar.data_classes.data_classes import EdgarEntity, Paragraph, Document, Corpus, Table
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ class EdgarParser:
             file_cal: str,
             file_lab: str,
             file_def: str
-    ) -> List:
+    ) -> Dict[str, List]:
         # file_htm = "/cluster/edgar_filings/aapl-20200926.htm"
         # file_cal = "/cluster/edgar_filings/aapl-20200926_cal.xml"
         # file_lab = "/cluster/edgar_filings/aapl-20200926_lab.xml"
@@ -176,9 +177,19 @@ class EdgarParser:
                         storage_list.append([file.namespace_label, dict_storage])
 
         # single xml file
+
+        doc = {"text": [], "table": []}
+
+        # parsing tables first
+        tree = lh.fromstring(bytes(file_htm, encoding="utf8"))
+        tables = tree.xpath('//table')
+        for tab in tables:
+            table = Table.from_html(tab)
+            doc["table"].append(table)
+
         tree = ElementTree.ElementTree(ElementTree.fromstring(file_htm))
         root = tree.getroot()
-        doc = []
+
         for node in root.iter():
             tag = re.sub("(?={)(.*)(?<=})", "", node.tag)
             attributes = node.attrib
@@ -216,7 +227,7 @@ class EdgarParser:
                     else:
                         text["entity"] = None
                     text["tail"] = html.unescape(node.tail).strip().replace("\xa0", " ") if node.tail else ""
-                    doc.append(text)
+                    doc["text"].append(text)
         return doc
 
     @staticmethod
@@ -281,7 +292,7 @@ class EdgarParser:
 
             i = 0
             segments = []
-            for seg in doc:
+            for seg in doc["text"]:
 
                 # compress all subparts into one string
                 text, entities = EdgarParser.recursive_transform_subparts(seg["sub"])
@@ -413,7 +424,6 @@ class EdgarParser:
                     # if condition: only parse whole edgar entry if the four relevant reports were found
                     if all(a in list(split_content.keys()) for a in ["10-K", "CAL", "DEF", "LAB"]):
                         unique_dict_key = "_".join(os.path.normpath(subdir).split(os.path.sep)[-2:]) + "_" + file
-                        # print(len(split_content["10-K"]))
                         parsed_data[unique_dict_key] = self._parse_edgar_entry(
                             file_htm=split_content["10-K"],
                             file_cal=split_content["CAL"],

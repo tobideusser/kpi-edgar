@@ -99,6 +99,13 @@ class Cell:
 class Sentence:
     pass
 
+    @classmethod
+    def from_dict(cls, d: Dict) -> Segment:
+        raise NotImplementedError
+
+    def to_dict(self) -> Dict:
+        raise NotImplementedError
+
 
 @dataclass
 class EdgarEntity:
@@ -147,7 +154,24 @@ class Paragraph(Segment):
     sentences: List[Sentence] = field(default_factory=list)
     textblock_entity: Optional[EdgarEntity] = None
     edgar_entities: List[EdgarEntity] = field(default_factory=list)
-    # todo: add to and from dict to this and other functions
+
+    @classmethod
+    def from_dict(cls, d: Dict) -> Segment:
+        sentences = d.get("sentences")
+        d["sentences"] = [Sentence.from_dict(sentence) for sentence in sentences] if sentences else []
+        d["textblock_entity"] = EdgarEntity.from_dict(d["textblock_entity"]) if d["textblock_entity"] else None
+        edgar_entities = d.get(d["edgar_entities"])
+        d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if d["textblock_entity"] \
+            else None
+        return cls(**d)
+
+    @abstractmethod
+    def to_dict(self) -> Dict:
+        d = self.__dict__
+        d["sentences"] = [sentence.to_dict() for sentence in self.sentences] if self.sentences else None
+        d["textblock_entity"] = self.textblock_entity.to_dict() if self.textblock_entity else None
+        d["edgar_entities"] = [entity.to_dict() for entity in self.edgar_entities] if self.edgar_entities else None
+        return d
 
 
 @dataclass
@@ -245,7 +269,7 @@ class Table(Segment):
 
             out = Table.extract_text_recursively(node, out, xbrl_tags)
 
-            if node.tag in xbrl_tags:
+            if node.tag in xbrl_tags and len(out) > 0:
                 info = dict(node.items())
                 out[-1]['info'].append(info)
 
@@ -378,11 +402,31 @@ class Document:
     id_: str
     segments: List[Segment]
 
+    @classmethod
+    def from_dict(cls, d: Dict):
+        d["segments"] = [seg.from_dict() for seg in d["segments"]]
+        return cls(**d)
+
+    def to_dict(self):
+        d = self.__dict__
+        d["segments"] = [seg.to_dict() for seg in self.segments]
+        return d
+
 
 @dataclass
 class Corpus:
-    documents: List[Document] = field(default_factory=list)
+    documents: List[Document]
     name: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        d["documents"] = [doc.from_dict() for doc in d["documents"]]
+        return cls(**d)
+
+    def to_dict(self):
+        d = self.__dict__
+        d["documents"] = [doc.to_dict() for doc in self.documents]
+        return d
 
 
 # def table_to_2d(table_tag):
