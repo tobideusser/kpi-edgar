@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class DataParsing(Task):
 
-    publishes = ['corpus_parsed']
+    publishes = ["corpus_parsed"]
 
     def __init__(
             self,
@@ -36,16 +36,17 @@ class DataParsing(Task):
         self.train_mode = train_mode
 
     def run(self):
-        logger.info(f'Parse {self.dataset_name} dataset with debug size {self.debug_size}.')
+        logger.info(f"Parse {self.dataset_name} dataset with debug size {self.debug_size}.")
         parser = EdgarParser(
             entity_prefixes=self.entity_prefixes,
             entity_formats=self.entity_formats,
             path_to_data_folders=self.path_to_data_folders,
-            debug_size=self.debug_size
+            debug_size=self.debug_size,
+            dataset_name=self.dataset_name
         )
         corpus = parser.parse_data_folder()
 
-        # if self.train_mode:
-        #     self.save(corpus.to_dict(), 'corpus_parsed', type_='pickle')
-        # else:
-        #     return corpus
+        if self.train_mode:
+            self.save(corpus.to_dict(), "corpus_parsed", type_="pickle")
+        else:
+            return corpus

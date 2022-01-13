@@ -21,12 +21,14 @@ class EdgarParser:
             entity_prefixes: List[str],
             entity_formats: List[str],
             path_to_data_folders: str,
-            debug_size: Optional[int] = None
+            debug_size: Optional[int] = None,
+            dataset_name: Optional[str] = None
     ):
         self.entity_prefixes = entity_prefixes
         self.entity_formats = entity_formats
         self.path_to_data_folders = path_to_data_folders
         self.debug_size = debug_size
+        self.dataset_name = dataset_name if dataset_name else "EDGAR"
 
     def _recursive_text_extract(
             self,
@@ -284,8 +286,7 @@ class EdgarParser:
                 )
         return text, entities
 
-    @staticmethod
-    def transform_to_dataclasses(parsed_data: Dict) -> Corpus:
+    def transform_to_dataclasses(self, parsed_data: Dict) -> Corpus:
 
         documents = []
         for key, doc in parsed_data.items():
@@ -330,7 +331,7 @@ class EdgarParser:
                 segments=segments
             ))
 
-        corpus = Corpus(documents=documents)
+        corpus = Corpus(documents=documents, name=self.dataset_name)
 
         return corpus
 
