@@ -3,7 +3,7 @@ from typing import Optional, List
 
 from fluidml import Task
 
-from edgar.data_parsing import EdgarParser
+from edgar.data_parser import EdgarParser
 
 
 logger = logging.getLogger(__name__)
