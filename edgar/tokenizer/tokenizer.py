@@ -5,9 +5,9 @@ from typing import List, Tuple, Iterator
 from syntok.tokenizer import Tokenizer as SynTokenizer
 from tqdm import tqdm
 
-from kpi_relation_extractor import package_path
-from kpi_relation_extractor.common.data_classes import Corpus, Paragraph, Table, Sentence, Word
-from kpi_relation_extractor.common.tokenizer.sentence_splitter import SentenceSplitter
+from edgar import package_path
+from edgar.data_classes import Corpus, Paragraph, Table, Sentence, Word
+from edgar.tokenizer import SentenceSplitter
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class Tokenizer:
         self._sent_splitter = SentenceSplitter(
             language=language,
             non_breaking_prefix_file=os.path.join(
-                package_path, "common", "tokenizer", f"{language}_sentencesplitter_additional.txt"
+                package_path, "tokenizer", f"{language}_sentencesplitter_additional.txt"
             )
         )
 

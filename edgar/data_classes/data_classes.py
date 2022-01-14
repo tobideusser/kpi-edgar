@@ -97,14 +97,55 @@ class Cell:
 
 @dataclass
 class Sentence:
-    pass
+    id_: int
+    value: str
+    split_type: Optional[str] = None
+    unique_id: Optional[str] = None
+
+    # word tokens
+    words: Optional[List[Word]] = None
+
+    # sub word tokens and ids, e.g. BERT tokens
+    tokens: Optional[List[str]] = None
+    # token_ids: Optional[Union[List[int], Tensor]] = None
+    # word2token_alignment_mask: Optional[Union[List[List[bool]], Tensor]] = None
+    # word2token_start_ids: Optional[List[int]] = None
+    # word2token_end_ids: Optional[List[int]] = None
+    #
+    # # entity annotations iobes format
+    # entities_anno_iobes: Optional[List[str]] = None
+    # entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
+    #
+    # # entity annotations
+    # entities_anno: Optional[List[Entity]] = None
+    # # relation annotations
+    # relations_anno: Optional[List[Relation]] = None
+    # # entity predictions
+    # entities_pred: Optional[List[Entity]] = None
+    # # relation predictions
+    # relations_pred: Optional[List[Relation]] = None
+    #
+    # # gold annotated entities for self-training
+    # entities_anno_gold: Optional[List[Entity]] = None
+    # # gold annotated relations for self-training
+    # relations_anno_gold: Optional[List[Entity]] = None
+
+    def __len__(self):
+        return len(self.words)
+
+    def __getitem__(self, idx) -> Word:
+        if self.words is not None:
+            return self.words[idx]
+        raise AttributeError("Content of Sentence not word tokenized.")
 
     @classmethod
     def from_dict(cls, d: Dict) -> Segment:
         raise NotImplementedError
 
     def to_dict(self) -> Dict:
-        raise NotImplementedError
+        d = self.__dict__
+        d["words"] = [word.to_dict() for word in d["words"]] if self.words else None
+        return d
 
 
 @dataclass
@@ -137,7 +178,7 @@ class EdgarEntity:
 class Segment:
     id_: int
     value: str
-    tag: Optional[str] = None
+    tag: str = None
 
     @classmethod
     @abstractmethod
@@ -160,12 +201,11 @@ class Paragraph(Segment):
         sentences = d.get("sentences")
         d["sentences"] = [Sentence.from_dict(sentence) for sentence in sentences] if sentences else []
         d["textblock_entity"] = EdgarEntity.from_dict(d["textblock_entity"]) if d["textblock_entity"] else None
-        edgar_entities = d.get(d["edgar_entities"])
-        d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if d["textblock_entity"] \
+        edgar_entities = d.get("edgar_entities")
+        d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if edgar_entities \
             else None
         return cls(**d)
 
-    @abstractmethod
     def to_dict(self) -> Dict:
         d = self.__dict__
         d["sentences"] = [sentence.to_dict() for sentence in self.sentences] if self.sentences else None
@@ -402,9 +442,21 @@ class Document:
     id_: str
     segments: List[Segment]
 
+    def __len__(self):
+        return len(self.segments)
+
+    def __getitem__(self, idx) -> Segment:
+        return self.segments[idx]
+
     @classmethod
     def from_dict(cls, d: Dict):
-        d["segments"] = [seg.from_dict() for seg in d["segments"]]
+        segments = d["segments"]
+        for i in range(len(segments)):
+            if segments[i]["tag"] == "text":
+                segments[i] = Paragraph.from_dict(segments[i])
+            elif segments[i]["tag"] == "table":
+                segments[i] = Table.from_dict(segments[i])
+        d["segments"] = segments
         return cls(**d)
 
     def to_dict(self):
@@ -418,9 +470,15 @@ class Corpus:
     documents: List[Document]
     name: Optional[str] = None
 
+    def __len__(self):
+        return len(self.documents)
+
+    def __getitem__(self, idx: int) -> Document:
+        return self.documents[idx]
+
     @classmethod
     def from_dict(cls, d: Dict):
-        d["documents"] = [doc.from_dict() for doc in d["documents"]]
+        d["documents"] = [Document.from_dict(doc) for doc in d["documents"]]
         return cls(**d)
 
     def to_dict(self):

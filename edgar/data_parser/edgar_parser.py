@@ -323,7 +323,8 @@ class EdgarParser:
                     id_=i,
                     value=text,
                     textblock_entity=textblock_entity,
-                    edgar_entities=entities
+                    edgar_entities=entities,
+                    tag="text"
                 ))
                 i += 1
             documents.append(Document(

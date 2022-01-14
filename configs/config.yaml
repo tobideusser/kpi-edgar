@@ -1,5 +1,5 @@
 # Base directory to store all task outputs
-base_dir: '/scratch/data/edgar/debug_2/'
+base_dir: '/scratch/data/edgar/debug_1/'
 
 ################
 # DATA PARSING #
@@ -11,3 +11,12 @@ DataParsing:
   entity_formats: ["ixt:numdotdecimal", "ix:nonFraction"]
   dataset_name: "EDGAR"
   debug_size: 10
+
+
+#####################
+# DATA TOKENIZATION #
+#####################
+
+DataTokenizing:
+  remove_tables: true
+  language: &language "en"
