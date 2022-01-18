@@ -39,7 +39,7 @@ class EdgarParser:
         text_parts = []
         for node in et:
             text_part = {
-                "text": html.unescape(node.text).strip().replace("\xa0", " ") if node.text else "",
+                "text": html.unescape(node.text).replace("\xa0", " ").strip() if node.text else "",
                 "sub": self._recursive_text_extract(
                     et=node,
                     storage_gaap=storage_gaap,
@@ -55,7 +55,7 @@ class EdgarParser:
                     text_part["entity"]["value"] = storage_values.get(text_part["entity"]["gaap"]["master_id"], None)
             else:
                 text_part["entity"] = None
-            text_part["tail"] = html.unescape(node.tail).strip().replace("\xa0", " ") if node.tail else ""
+            text_part["tail"] = html.unescape(node.tail).replace("\xa0", " ").strip() if node.tail else ""
             if text_part["text"] != "" or text_part["tail"] != "" or text_part["entity"] is not None:
                 text_parts.append(text_part)
             elif len(text_part["sub"]) > 0:
@@ -212,7 +212,7 @@ class EdgarParser:
                     # })
                     # entity_list[-1].update(attributes)
                     text = {
-                        "text": html.unescape(node.text).strip().replace("\xa0", " ") if node.text else "",
+                        "text": html.unescape(node.text).replace("\xa0", " ").strip() if node.text else "",
                         "sub": self._recursive_text_extract(
                             node,
                             storage_gaap=storage_gaap,
@@ -228,7 +228,7 @@ class EdgarParser:
                             text["entity"]["value"] = storage_values.get(text["entity"]["gaap"]["master_id"], None)
                     else:
                         text["entity"] = None
-                    text["tail"] = html.unescape(node.tail).strip().replace("\xa0", " ") if node.tail else ""
+                    text["tail"] = html.unescape(node.tail).replace("\xa0", " ").strip() if node.tail else ""
                     doc["text"].append(text)
         return doc
 
@@ -248,12 +248,13 @@ class EdgarParser:
                 # if dict, extract the information stored therein
 
                 start = len(text)
-                text += text_part["text"] + (" " if text_part["text"] else "")
+                text_part["text"] = text_part["text"].strip()
+                text += text_part["text"].replace("  ", " ") + (" " if text_part["text"] != "" else "")
 
                 if text_part["entity"]:
                     entities.append(EdgarEntity(
-                        start=start,
-                        end=len(text),
+                        start_char=start,
+                        end_char=len(text),
                         id_=text_part["entity"]["id"],
                         name=text_part["entity"]["name"],
                         value=text_part["text"],
@@ -274,7 +275,7 @@ class EdgarParser:
                         text=text,
                         entities=entities
                     )
-                text += text_part["tail"] + (" " if text_part["tail"] else "")
+                text += text_part["tail"].replace("  ", " ") + (" " if text_part["tail"] != "" else "")
 
             else:
                 # assume text_part is a list, pass the whole list to recursive_transform_subparts() to loop through
@@ -305,8 +306,8 @@ class EdgarParser:
                         value=text,
                         name=seg["entity"]["name"],
                         id_=seg["entity"]["id"],
-                        start=0,
-                        end=len(text),
+                        start_char=0,
+                        end_char=len(text),
                         context_ref=seg["entity"].get("contextRef", None),
                         continued_at=seg["entity"].get("continuedAt", None),
                         escape=bool(seg["entity"].get("continuedAt", None)),

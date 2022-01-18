@@ -101,6 +101,7 @@ class Sentence:
     value: str
     split_type: Optional[str] = None
     unique_id: Optional[str] = None
+    edgar_entities: Optional[List[EdgarEntity]] = None
 
     # word tokens
     words: Optional[List[Word]] = None
@@ -152,9 +153,11 @@ class Sentence:
 class EdgarEntity:
     id_: str
     name: str
-    start: int
-    end: int
+    start_char: int
+    end_char: int
     value: str
+    start_word: Optional[int] = None
+    end_word: Optional[int] = None
     context_ref: Optional[str] = None
     continued_at: Optional[str] = None
     escape: Optional[bool] = None
