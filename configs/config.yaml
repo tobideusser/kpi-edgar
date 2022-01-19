@@ -1,5 +1,5 @@
 # Base directory to store all task outputs
-base_dir: '/scratch/data/edgar/debug_1/'
+base_dir: "/scratch/data/edgar/debug_1/"
 
 ################
 # DATA PARSING #
@@ -20,3 +20,12 @@ DataParsing:
 DataTokenizing:
   remove_tables: true
   language: &language "en"
+
+
+################
+# DATA TAGGING #
+################
+
+DataTagging:
+  remove_non_currency_sentences: true
+  language: *language
