@@ -43,6 +43,12 @@ class Word:
     prefix: Optional[str] = None
     suffix: Optional[str] = None
     info: Optional[Dict] = None
+    value_numeric: Optional[float] = None
+    value_masked: Optional[str] = None
+    is_numeric: Optional[bool] = None
+    is_currency: Optional[bool] = None
+    unit: Optional[str] = None
+    multiplier: Optional[int] = None
 
     @classmethod
     def from_dict(cls, d: Dict):

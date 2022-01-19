@@ -282,7 +282,7 @@ def filter_corpus_by_ccy_sentences(corpus: Corpus) -> Corpus:
     for document in tqdm(corpus):
         segments_filtered = []
         for segment in document:
-            if segment.type_ == 'text':
+            if segment.tag == 'text':
                 sentences_filtered = []
                 for sentence in segment:
                     if any([token.is_currency for token in sentence]):
@@ -290,7 +290,7 @@ def filter_corpus_by_ccy_sentences(corpus: Corpus) -> Corpus:
                 segment.sentences = sentences_filtered
                 if segment.sentences:
                     segments_filtered.append(segment)
-            elif segment.type_ == 'table':
+            elif segment.tag == 'table':
                 segments_filtered.append(segment)
         document.segments = segments_filtered
     return corpus
