@@ -102,6 +102,91 @@ class Cell:
 
 
 @dataclass
+class Entity:
+    type_: str
+    start: int
+    end: int
+    _value: Optional[str] = None
+    score: Optional[float] = None
+
+    def get_value(self, words: List[Word]) -> str:
+        if self._value is None:
+            self._value = ' '.join([t.value for t in words[self.start:self.end]])
+        return self._value
+
+    def get_words(self, words: List[Word]) -> List[Word]:
+        return words[self.start:self.end]
+
+    @property
+    def span(self):
+        return self.start, self.end
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        return cls(**d)
+
+    def to_dict(self) -> Dict:
+        return self.__dict__
+
+
+@dataclass
+class Relation:
+    type_: str
+    head_idx: int
+    tail_idx: int
+    score: Optional[float] = None
+    head_entity: Optional[Entity] = None
+    tail_entity: Optional[Entity] = None
+    is_symmetric: bool = True
+
+    def __eq__(self, other):
+        if self.head_entity is None or self.tail_entity is None:
+            raise ValueError('Call relation.get_entities(entities) first, '
+                             'to set self.head_entity and self.tail_entity.')
+        if isinstance(other, Relation):
+            return (self.type_ == other.type_
+                    and self.head_entity.span == other.head_entity.span
+                    and self.tail_entity.span == other.tail_entity.span
+                    and self.head_entity.type_ == other.head_entity.type_
+                    and self.tail_entity.type_ == other.tail_entity.type_)
+        return False
+
+    def get_entities(self, entities: List[Entity]) -> Tuple[Entity, Entity]:
+        if self.head_entity is None:
+            self.head_entity = entities[self.head_idx]
+        if self.tail_entity is None:
+            self.tail_entity = entities[self.tail_idx]
+        return self.head_entity, self.tail_entity
+
+    @property
+    def reverse(self):
+        return self.tail_entity.start < self.head_entity.start
+
+    @property
+    def first_entity(self):
+        return self.head_entity if not self.reverse else self.tail_entity
+
+    @property
+    def second_entity(self):
+        return self.tail_entity if not self.reverse else self.head_entity
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        head_entity = d.get('head_entity', None)
+        d['head_entity'] = Entity.from_dict(head_entity) if head_entity is not None else None
+
+        tail_entity = d.get('tail_entity', None)
+        d['tail_entity'] = Entity.from_dict(tail_entity) if tail_entity is not None else None
+        return cls(**d)
+
+    def to_dict(self) -> Dict:
+        d = self.__dict__
+        return {**d,
+                **{'head_entity': self.head_entity.to_dict() if self.head_entity is not None else None,
+                   'tail_entity': self.tail_entity.to_dict() if self.tail_entity is not None else None}}
+
+
+@dataclass
 class Sentence:
     id_: int
     value: str
@@ -123,14 +208,14 @@ class Sentence:
     # entities_anno_iobes: Optional[List[str]] = None
     # entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
     #
-    # # entity annotations
-    # entities_anno: Optional[List[Entity]] = None
-    # # relation annotations
-    # relations_anno: Optional[List[Relation]] = None
-    # # entity predictions
-    # entities_pred: Optional[List[Entity]] = None
-    # # relation predictions
-    # relations_pred: Optional[List[Relation]] = None
+    # entity annotations
+    entities_anno: Optional[List[Entity]] = None
+    # relation annotations
+    relations_anno: Optional[List[Relation]] = None
+    # entity predictions
+    entities_pred: Optional[List[Entity]] = None
+    # relation predictions
+    relations_pred: Optional[List[Relation]] = None
     #
     # # gold annotated entities for self-training
     # entities_anno_gold: Optional[List[Entity]] = None
@@ -144,6 +229,28 @@ class Sentence:
         if self.words is not None:
             return self.words[idx]
         raise AttributeError("Content of Sentence not word tokenized.")
+
+    @property
+    def num_tokens(self):
+        return len(self.tokens) if self.tokens else None
+
+    @property
+    def n_words(self):
+        return len(self.words) if self.words else None
+
+    @property
+    def has_numeric(self) -> bool:
+        if self.words is None:
+            raise RuntimeError("Input not tokenized?")
+
+        return any([word.is_numeric for word in self.words])
+
+    @property
+    def has_currency(self) -> bool:
+        if self.words is None:
+            raise RuntimeError("Input not tokenized?")
+
+        return any([word.is_currency for word in self.words])
 
     @classmethod
     def from_dict(cls, d: Dict) -> Sentence:
