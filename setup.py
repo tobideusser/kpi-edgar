@@ -19,7 +19,7 @@ setup(
                       "pandas",
                       "pyyaml",
                       "rapidfuzz",
-                      "secedgar",
+                      "secedgar",  # requires version 0.4 from github
                       "sklearn",
                       "syntok",
                       "tensorboard",

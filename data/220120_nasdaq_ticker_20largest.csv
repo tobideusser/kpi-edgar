@@ -1,0 +1,21 @@
+Symbol,Name,Last Sale,Net Change,% Change,Market Cap,Country,IPO Year,Volume,Sector,Industry
+AAPL,Apple Inc. Common Stock,$166.23,-3.57,-2.102%,2881986028200,United States,1980,94606201,Technology,Computer Manufacturing
+MSFT,Microsoft Corporation Common Stock,$303.33,0.68,0.225%,2277395708079,United States,1986,45852240,Technology,Computer Software: Prepackaged Software
+GOOG,Alphabet Inc. Class C Capital Stock,$2713.04,-12.77,-0.468%,1800818266282,United States,2004,1038489,Technology,Internet and Information Services
+GOOGL,Alphabet Inc. Class A Common Stock,$2702.33,-17.63,-0.648%,1793709353906,United States,,1431343,Technology,Internet and Information Services
+AMZN,Amazon.com Inc. Common Stock,$3125.98,-52.37,-1.648%,1585333317168,United States,1997,2654180,Consumer Services,Catalog/Specialty Distribution
+TSLA,Tesla Inc. Common Stock,$995.65,-34.86,-3.383%,999896299894,United States,2010,25034913,Capital Goods,Auto Manufacturing
+FB,Meta Platforms Inc. Class A Common Stock,$319.59,1.44,0.453%,901066268075,United States,2012,20791285,Technology,Internet and Information Services
+NVDA,NVIDIA Corporation Common Stock,$250.67,-8.36,-3.227%,626675000000,United States,1999,48665844,Technology,Semiconductors
+V,Visa Inc.,$214.68,-1.03,-0.477%,466673288856,United States,,9398153,Miscellaneous,Business Services
+JNJ,Johnson & Johnson Common Stock,$166.58,-0.52,-0.311%,438538003096,United States,,5925847,Health Care,Biotechnology: Pharmaceutical Preparations
+JPM,JP Morgan Chase & Co. Common Stock,$148.93,-2.34,-1.547%,438464813000,United States,,22363476,Finance,Major Banks
+UNH,UnitedHealth Group Incorporated Common Stock (DE),$462.52,1.53,0.332%,435625040150,United States,,4028075,Health Care,Medical Specialities
+BAC,Bank of America Corporation Common Stock,$46.44,0.18,0.389%,400649608515,United States,,84312559,Finance,Major Banks
+WMT,Walmart Inc. Common Stock,$143.94,1.42,0.996%,399272065245,United States,,7556444,Consumer Services,Department/Specialty Retail Stores
+PG,Procter & Gamble Company (The) Common Stock,$162.00,5.27,3.362%,392031546678,United States,,14083284,Consumer Non-Durables,Package Goods/Cosmetics
+HD,Home Depot Inc. (The) Common Stock,$359.69,-7.03,-1.917%,375602389575,United States,,5173152,Consumer Services,RETAIL: Building Materials
+MA,Mastercard Incorporated Common Stock,$360.73,-5.57,-1.521%,354437929098,United States,2006,4464358,Miscellaneous,Business Services
+XOM,Exxon Mobil Corporation Common Stock,$73.11,0.03,0.041%,309516071599,United States,,26410160,Energy,Oil & Gas Production
+PFE,Pfizer Inc. Common Stock,$53.54,-0.57,-1.053%,300512877657,United States,,27281796,Health Care,Biotechnology: Pharmaceutical Preparations
+DIS,Walt Disney Company (The) Common Stock,$150.11,-2.16,-1.419%,272848334354,United States,,10404338,Consumer Services,Movies/Entertainment
