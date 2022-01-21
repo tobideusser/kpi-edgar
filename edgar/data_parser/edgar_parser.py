@@ -38,28 +38,29 @@ class EdgarParser:
     ) -> List:
         text_parts = []
         for node in et:
-            text_part = {
-                "text": html.unescape(node.text).replace("\xa0", " ").strip() if node.text else "",
-                "sub": self._recursive_text_extract(
-                    et=node,
-                    storage_gaap=storage_gaap,
-                    storage_values=storage_values
-                )
-            }
+            if "table" not in node.tag:
+                text_part = {
+                    "text": html.unescape(node.text).replace("\xa0", " ").strip() if node.text else "",
+                    "sub": self._recursive_text_extract(
+                        et=node,
+                        storage_gaap=storage_gaap,
+                        storage_values=storage_values
+                    )
+                }
 
-            if any(entity_prefix == node.attrib.get("name", "") for entity_prefix in self.entity_prefixes) or \
-                    any(entity_format == node.attrib.get("format", "") for entity_format in self.entity_formats):
-                text_part["entity"] = node.attrib
-                text_part["entity"]["gaap"] = storage_gaap.get(text_part["entity"]["name"], None)
-                if text_part["entity"]["gaap"] is not None:
-                    text_part["entity"]["value"] = storage_values.get(text_part["entity"]["gaap"]["master_id"], None)
-            else:
-                text_part["entity"] = None
-            text_part["tail"] = html.unescape(node.tail).replace("\xa0", " ").strip() if node.tail else ""
-            if text_part["text"] != "" or text_part["tail"] != "" or text_part["entity"] is not None:
-                text_parts.append(text_part)
-            elif len(text_part["sub"]) > 0:
-                text_parts.append(text_part["sub"])
+                if any(entity_prefix == node.attrib.get("name", "") for entity_prefix in self.entity_prefixes) or \
+                        any(entity_format == node.attrib.get("format", "") for entity_format in self.entity_formats):
+                    text_part["entity"] = node.attrib
+                    text_part["entity"]["gaap"] = storage_gaap.get(text_part["entity"]["name"], None)
+                    if text_part["entity"]["gaap"] is not None:
+                        text_part["entity"]["value"] = storage_values.get(text_part["entity"]["gaap"]["master_id"], None)
+                else:
+                    text_part["entity"] = None
+                text_part["tail"] = html.unescape(node.tail).replace("\xa0", " ").strip() if node.tail else ""
+                if text_part["text"] != "" or text_part["tail"] != "" or text_part["entity"] is not None:
+                    text_parts.append(text_part)
+                elif len(text_part["sub"]) > 0:
+                    text_parts.append(text_part["sub"])
         return text_parts
 
     def _parse_edgar_entry(
@@ -379,51 +380,53 @@ class EdgarParser:
                             string=doc,
                             flags=re.DOTALL
                         )[0]
+                        try:
+                            if "10-K" in doc_type.upper():
 
-                        if "10-K" in doc_type.upper():
+                                split_content["10-K"] = re.search(
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                    string=doc,
+                                    flags=re.DOTALL
+                                )[0]
+                                # remove leading linebreaks if they exist
+                                while split_content["10-K"][0] == "\n":
+                                    split_content["10-K"] = split_content["10-K"][1:]
 
-                            split_content["10-K"] = re.search(
-                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                string=doc,
-                                flags=re.DOTALL
-                            )[0]
-                            # remove leading linebreaks if they exist
-                            while split_content["10-K"][0] == "\n":
-                                split_content["10-K"] = split_content["10-K"][1:]
+                            elif "CAL" in doc_type.upper():
 
-                        elif "CAL" in doc_type.upper():
+                                split_content["CAL"] = re.search(
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                    string=doc,
+                                    flags=re.DOTALL
+                                )[0]
+                                # remove leading linebreaks if they exist
+                                while split_content["CAL"][0] == "\n":
+                                    split_content["CAL"] = split_content["CAL"][1:]
 
-                            split_content["CAL"] = re.search(
-                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                string=doc,
-                                flags=re.DOTALL
-                            )[0]
-                            # remove leading linebreaks if they exist
-                            while split_content["CAL"][0] == "\n":
-                                split_content["CAL"] = split_content["CAL"][1:]
+                            elif "LAB" in doc_type.upper():
 
-                        elif "LAB" in doc_type.upper():
+                                split_content["LAB"] = re.search(
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                    string=doc,
+                                    flags=re.DOTALL
+                                )[0]
+                                # remove leading linebreaks if they exist
+                                while split_content["LAB"][0] == "\n":
+                                    split_content["LAB"] = split_content["LAB"][1:]
 
-                            split_content["LAB"] = re.search(
-                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                string=doc,
-                                flags=re.DOTALL
-                            )[0]
-                            # remove leading linebreaks if they exist
-                            while split_content["LAB"][0] == "\n":
-                                split_content["LAB"] = split_content["LAB"][1:]
+                            elif "DEF" in doc_type.upper():
 
-                        elif "DEF" in doc_type.upper():
-
-                            split_content["DEF"] = re.search(
-                                r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                string=doc,
-                                flags=re.DOTALL
-                            )[0]
-                            # remove leading linebreaks if they exist
-                            while split_content["DEF"][0] == "\n":
-                                split_content["DEF"] = split_content["DEF"][1:]
-
+                                split_content["DEF"] = re.search(
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
+                                    string=doc,
+                                    flags=re.DOTALL
+                                )[0]
+                                # remove leading linebreaks if they exist
+                                while split_content["DEF"][0] == "\n":
+                                    split_content["DEF"] = split_content["DEF"][1:]
+                        except TypeError:
+                            # most likely <XBRL> do not exist, skip the document
+                            logger.warning(f"TypeError in {os.path.join(subdir, file)}, skipping entry.")
                     # if condition: only parse whole edgar entry if the four relevant reports were found
                     if all(a in list(split_content.keys()) for a in ["10-K", "CAL", "DEF", "LAB"]):
                         unique_dict_key = "_".join(os.path.normpath(subdir).split(os.path.sep)[-2:]) + "_" + file

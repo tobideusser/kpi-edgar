@@ -9,7 +9,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "Tobias Deusser (tobias.deusser@iais.fraunhofer.de)"
-TICKER_FILE = "../data/220120_nasdaq_ticker_20largest.csv"
+TICKER_FILE = "../data/220120_nasdaq_ticker_above$200B.csv"
 COMPANY_TICKER = [
     "aapl",  # Apple
     "msft",  # Microsoft
@@ -23,7 +23,7 @@ COMPANY_TICKER = [
     "f"  # Ford
 ]
 NUMBER_REPORTS = 20
-PATH = "/cluster/edgar_filings_20largest"
+PATH = "/cluster/edgar_filings_above$200B"
 START_DATE = date(2021, 1, 1)
 
 

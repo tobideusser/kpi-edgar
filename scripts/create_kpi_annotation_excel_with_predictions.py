@@ -323,9 +323,9 @@ def _write_converted_relations(ws: Worksheet, converted_relations: List[Optional
 
 def main():
 
-    len_test_valid_set = 2
+    len_test_valid_set = 8
     # todo: annotate documents, then run this again?
-    predicted_corpus_dir = "/scratch/data/edgar/debug_1/DataTagging/000/"
+    predicted_corpus_dir = "/scratch/data/edgar/above200B/DataTagging/000/"
     predicted_corpus_path = os.path.join(predicted_corpus_dir, "corpus_tagged.p")
     corpus = pickle.load(open(predicted_corpus_path, 'rb'))
     save_path = "/scratch/data/edgar/"
