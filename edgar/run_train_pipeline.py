@@ -8,7 +8,9 @@ from fluidml import Flow, Swarm
 from fluidml.flow import TaskSpec
 
 from edgar import project_path
-from edgar.tasks import DataParsing, DataTokenizing, DataTagging, AnnotationMerging
+from edgar.tasks import (
+    DataParsing, DataTokenizing, DataTagging, AnnotationMerging, SubWordTokenization, ModelTraining
+)
 from edgar.utils.fluid_helper import configure_logging, MyLocalFileStore, TaskResource
 from edgar.utils.training_utils import get_balanced_devices
 
