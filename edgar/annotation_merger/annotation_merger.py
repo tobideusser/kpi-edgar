@@ -4,13 +4,16 @@ from typing import List, Dict, Tuple, Optional
 
 import numpy as np
 import xlrd
+from tqdm import tqdm
+
+from edgar import ALLOWED_RELATIONS, ALLOWED_ENTITIES, IS_ENTITY_NUMERIC
+from edgar.data_classes import Corpus, Paragraph, Entity, Relation, Sentence, Labels
+
+
 # https://stackoverflow.com/questions/64264563/attributeerror-elementtree-object-has-no-attribute-getiterator-when-trying
 xlrd.xlsx.ensure_elementtree_imported(False, None)
 xlrd.xlsx.Element_has_iter = True
-from tqdm import tqdm
 
-from edgar.data_classes import Corpus, Paragraph, Entity, Relation, Sentence, Labels
-from edgar import ALLOWED_RELATIONS, ALLOWED_ENTITIES, IS_ENTITY_NUMERIC
 
 logger = logging.getLogger(__name__)
 
@@ -144,11 +147,17 @@ class AnnotationMerger:
                 split_type = sheet.cell(0, 1).value
                 split_type = None if split_type == "" else split_type
 
+                try:
+                    document_year = sheet.cell(0, 3).value
+                except IndexError:
+                    document_year = 2020
+
                 # get amount of sentences stored in the sheet
                 sentences_count = int((sheet.nrows - 1) / 7)
 
                 for sentence_counter in range(sentences_count):
                     error_flag = False
+                    skip_flag = False
 
                     # read blob id and sentence id of current sentence
                     blob_id = int(sheet.cell(sentence_counter * 7 + 2, 1).value)
@@ -186,7 +195,8 @@ class AnnotationMerger:
                         for raw_entity in raw_entities:
                             if raw_entity != "":
                                 # get all positions of the entity
-                                positions = [pos for pos, raw_anno in enumerate(raw_annotations) if raw_anno == raw_entity]
+                                positions = [pos for pos, raw_anno in enumerate(raw_annotations)
+                                             if raw_anno == raw_entity]
 
                                 if raw_entity == "false_positive":
                                     entities.append({"type": raw_entity,
@@ -206,21 +216,22 @@ class AnnotationMerger:
                                         logger.warning(f"The annotation {raw_entity} appears in non consecutive cells.")
                                         logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
                                                        f"blob_id={blob_id}, sentence_id={sentence_id}")
-                                        # logger.warning("Please fix this warning (or add the entity to ALLOWED_ENTITIES), "
-                                        #                "as it will force mistakes later on.\n")
                                         error_count += 1
                                         error_flag = True
 
                                     elif entity_type not in ALLOWED_ENTITIES:
 
-                                        logger.warning("Entity Type Warning")
-                                        logger.warning(f"Found entity type {entity_type} which is currently not supported.")
-                                        logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                       f"blob_id={blob_id}, sentence_id={sentence_id}")
-                                        # logger.warning("Please fix this warning (or add the entity to ALLOWED_ENTITIES), "
-                                        #                "as it will force mistakes later on.\n")
-                                        error_count += 1
-                                        error_flag = True
+                                        if entity_type == "delete":
+                                            skip_flag = True
+                                        else:
+
+                                            logger.warning("Entity Type Warning")
+                                            logger.warning(f"Found entity type {entity_type} which is currently not "
+                                                           f"supported.")
+                                            logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
+                                                           f"blob_id={blob_id}, sentence_id={sentence_id}")
+                                            error_count += 1
+                                            error_flag = True
 
                                     elif (AnnotationMerger._isnumeric(
                                             " ".join(map(str, tokens[min(positions):(max(positions) + 1)])), "-., "
@@ -238,8 +249,6 @@ class AnnotationMerger:
                                                            "which is a numeric value but should not be.")
                                         logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
                                                        f"blob_id={blob_id}, sentence_id={sentence_id}")
-                                        # logger.warning("Please fix this warning (or add the entity to ALLOWED_ENTITIES), "
-                                        #                "as it will force mistakes later on.\n")
                                         error_count += 1
                                         error_flag = True
 
@@ -258,7 +267,6 @@ class AnnotationMerger:
                                             logger.warning(f"The entity {raw_entity} likely has no relation annotation.")
                                             logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
                                                            f"blob_id={blob_id}, sentence_id={sentence_id}")
-                                            # logger.warning("Please fix this warning, as it will force mistakes later on.\n")
                                             error_count += 1
                                             error_flag = True
 
@@ -267,7 +275,8 @@ class AnnotationMerger:
                         for i, entity1 in enumerate(entities):
                             for j, entity2 in enumerate(entities):
                                 try:
-                                    # reason for i < j: stops relation from appearing twice (and stops linking to itself)
+                                    # reason for i < j:
+                                    #   stops relation from appearing twice (and stops linking to itself)
                                     if i < j and AnnotationMerger._check_entity_link(entities, i, j):
                                         # todo: if statement correct?
                                         # relations.append({"type": "matches", "head": i, "tail": j})
@@ -291,7 +300,7 @@ class AnnotationMerger:
 
                         if error_flag and self.skip_sentences_with_error:
                             logger.warning("Error found, sentence was skipped.\n")
-                        else:
+                        elif not skip_flag:
                             # add the extracted information as a dict to the result list
                             results.append(
                                 {
@@ -301,7 +310,8 @@ class AnnotationMerger:
                                     "doc_name": doc_name,
                                     "segment_id": blob_id,
                                     "sentence_id": sentence_id,
-                                    "split_type": split_type
+                                    "split_type": split_type,
+                                    "document_year": document_year
                                 }
                             )
                     else:

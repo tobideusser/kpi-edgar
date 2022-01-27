@@ -8,7 +8,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import product
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Iterator
 
 import lxml
 import pandas as pd
@@ -34,6 +34,69 @@ def create_dataframe_from_json(df: str) -> pd.DataFrame:
         parsed_df[parsed_key] = v
 
     return pd.DataFrame(parsed_df)
+
+
+@dataclass
+class Index:
+    idx2val: Dict = None
+    val2idx: Dict = None
+
+    @classmethod
+    def from_values(cls, values: List):
+        idx2val = {i: v for i, v in enumerate(values)}
+        val2idx = {v: k for k, v in idx2val.items()}
+        return cls(idx2val, val2idx)
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        idx2val = d.get('idx2val')
+        idx2val = {int(k): v for k, v in idx2val.items()} if idx2val is not None else None
+        return cls(idx2val=idx2val, val2idx=d.get('val2idx'))
+
+    def to_dict(self) -> Dict:
+        return self.__dict__
+
+
+@dataclass
+class Labels:
+    entities: Index
+    relations: Index
+    _iobes: Optional[Index] = None
+
+    @property
+    def iobes(self):
+        if self._iobes is not None:
+            return self._iobes
+        iobes = ['O']
+        for ent_type in [t for t in self.entities.idx2val.values() if not t == 'None']:
+            iobes.extend([f'{prefix}-{ent_type}' for prefix in 'BIES'])
+        self._iobes = Index.from_values(iobes)
+        return self._iobes
+
+    @classmethod
+    def from_corpus(cls, corpus: Corpus):
+        entities = ['None'] + sorted({entity.type_
+                                      for document in corpus
+                                      for segment in document if isinstance(segment, Paragraph)
+                                      for sentence in segment if sentence.entities_anno
+                                      for entity in sentence.entities_anno})
+        relations = sorted({relation.type_
+                            for document in corpus
+                            for segment in document if isinstance(segment, Paragraph)
+                            for sentence in segment if sentence.relations_anno
+                            for relation in sentence.relations_anno})
+        return cls(entities=Index.from_values(entities), relations=Index.from_values(relations))
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        return cls(entities=Index.from_dict(d.get('entities', {})),
+                   relations=Index.from_dict(d.get('relations', {})),
+                   _iobes=Index.from_dict(d.get('_iobes', {})))
+
+    def to_dict(self) -> Dict:
+        return {'entities': self.entities.to_dict() if self.entities else None,
+                'relations': self.relations.to_dict() if self.relations else None,
+                '_iobes': self._iobes.to_dict() if self._iobes else None}
 
 
 @dataclass
@@ -302,6 +365,10 @@ class Segment:
     value: str
     tag: str = None
 
+    @abstractmethod
+    def __getitem__(self, idx):
+        raise NotImplementedError
+
     @classmethod
     @abstractmethod
     def from_dict(cls, d: Dict) -> Segment:
@@ -569,6 +636,8 @@ class Table(Segment):
 class Document:
     id_: str
     segments: List[Segment]
+    document_year: Optional[int] = None
+    is_annotated: bool = False
 
     def __len__(self):
         return len(self.segments)
@@ -603,6 +672,14 @@ class Corpus:
 
     def __getitem__(self, idx: int) -> Document:
         return self.documents[idx]
+
+    @property
+    def sentences(self) -> Iterator:
+        for document in self.documents:
+            for segment in document:
+                if segment.tag == "text":
+                    for sentence in segment:
+                        yield sentence
 
     @classmethod
     def from_dict(cls, d: Dict):

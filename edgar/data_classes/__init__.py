@@ -9,5 +9,7 @@ from .data_classes import (
     Corpus,
     Segment,
     Relation,
-    Entity
+    Entity,
+    Labels,
+    Index
 )

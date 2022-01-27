@@ -29,3 +29,33 @@ DataTokenizing:
 DataTagging:
   remove_non_currency_sentences: true
   language: *language
+
+
+#####################
+# Annotation Merger #
+#####################
+
+AnnotationMerging:
+  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations.xlsx"
+  filter_for_annotated_docs: true  # set false for self-training
+  ignore_noncritical_warnings: true
+  skip_sentences_with_error: true
+  merge_auto_annotations: false
+  label_mapping:
+    kpi: 'kpi'
+    kpi_coref: 'kpi_coref'
+    cy: 'cy'
+    py: 'py'
+    py1: "py1"
+    increase: 'increase'
+    increase_py: "increase_py"
+    decrease: 'decrease'
+    decrease_py: "decrease_py"
+    thereof: 'thereof'
+    thereof_coref: 'thereof'
+    attr: "attr"
+    thereof_cy: 'cy'
+    thereof_py: 'py'
+    davon_increase: false
+    davon_decrease: false
+    false_positive: false

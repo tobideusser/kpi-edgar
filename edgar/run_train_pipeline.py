@@ -8,7 +8,7 @@ from fluidml import Flow, Swarm
 from fluidml.flow import TaskSpec
 
 from edgar import project_path
-from edgar.tasks import DataParsing, DataTokenizing, DataTagging
+from edgar.tasks import DataParsing, DataTokenizing, DataTagging, AnnotationMerging
 from edgar.utils.fluid_helper import configure_logging, MyLocalFileStore, TaskResource
 from edgar.utils.training_utils import get_balanced_devices
 
@@ -72,21 +72,25 @@ def main():
     data_parsing_cfg = config["DataParsing"]
     data_tokenization_cfg = config["DataTokenizing"]
     data_tagging_cfg = config["DataTagging"]
+    annotation_merging_cfg = config["AnnotationMerging"]
 
     # create all task specs
     data_parsing = TaskSpec(task=DataParsing, config=data_parsing_cfg)
     data_tokenizing = TaskSpec(task=DataTokenizing, config=data_tokenization_cfg)
     data_tagging = TaskSpec(task=DataTagging, config=data_tagging_cfg)
+    annotation_merging = TaskSpec(task=AnnotationMerging, config=annotation_merging_cfg)
 
     # dependencies between tasks
     data_tokenizing.requires(data_parsing)
     data_tagging.requires(data_tokenizing)
+    annotation_merging.requires(data_tagging)
 
     # all tasks
     tasks = [
         data_parsing,
         data_tokenizing,
-        data_tagging
+        data_tagging,
+        annotation_merging
     ]
 
     # create list of resources
