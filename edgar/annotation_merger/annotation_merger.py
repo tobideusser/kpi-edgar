@@ -208,7 +208,7 @@ class AnnotationMerger:
                                     # and map to original entity_type
                                     entity_splitted = raw_entity.split("_")
                                     rel_annos = [rel_anno for rel_anno in entity_splitted if rel_anno.isnumeric()]
-                                    entity_type = "_".join([et for et in entity_splitted if not et.isnumeric()])
+                                    entity_type = "_".join([et.lower() for et in entity_splitted if not et.isnumeric()])
 
                                     if sorted(positions) != list(range(min(positions), max(positions) + 1)):
 
@@ -493,3 +493,33 @@ class AnnotationMerger:
         corpus = AnnotationMerger._add_iobes_annotations(corpus, labels)
         return corpus, labels
 
+
+if __name__ == "__main__":
+    annotation_merger = AnnotationMerger(
+        excel_annotation_path= "/scratch/projects/edgar/data/edgar_relation_annotations.xlsx",
+        ignore_noncritical_warnings= True,
+        skip_sentences_with_error= True,
+        filter_for_annotated_docs= True,
+        merge_auto_annotations= False,
+        label_mapping= {
+            "kpi": 'kpi',
+            "kpi_coref": 'kpi_coref',
+            "cy": 'cy',
+            "py": 'py',
+            "py1": "py1",
+            'increase': 'increase',
+            'increase_py': "increase_py",
+            'decrease': 'decrease',
+            'decrease_py': "decrease_py",
+            'thereof': 'thereof',
+            'thereof_coref': 'thereof',
+            'attr': "attr",
+            'thereof_cy': 'cy',
+            'thereof_py': 'py',
+            'davon_increase': False,
+            'davon_decrease': False,
+            'false_positive': False
+        }
+    )
+    result = annotation_merger._read_xl_annotations()
+    print("It is working")
