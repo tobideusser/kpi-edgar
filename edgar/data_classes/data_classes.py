@@ -267,9 +267,9 @@ class Sentence:
     # word2token_start_ids: Optional[List[int]] = None
     # word2token_end_ids: Optional[List[int]] = None
     #
-    # # entity annotations iobes format
-    # entities_anno_iobes: Optional[List[str]] = None
-    # entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
+    # entity annotations iobes format
+    entities_anno_iobes: Optional[List[str]] = None
+    entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
     #
     # entity annotations
     entities_anno: Optional[List[Entity]] = None

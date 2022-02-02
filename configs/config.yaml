@@ -59,3 +59,12 @@ AnnotationMerging:
     davon_increase: false
     davon_decrease: false
     false_positive: false
+
+#####################
+# SubWord Tokenization #
+#####################
+
+SubWordTokenization:
+  tokenizer_name: 'bert-base-uncased' # '&tokname 'bert-base-german-dbmdz-cased'
+  special_tokens: null
+#    additional_special_tokens : [['[NUM]']]
