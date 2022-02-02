@@ -65,6 +65,91 @@ AnnotationMerging:
 #####################
 
 SubWordTokenization:
-  tokenizer_name: 'bert-base-uncased' # '&tokname 'bert-base-german-dbmdz-cased' **checking with this tokenizer
+  tokenizer_name: &tokname 'bert-base-uncased' # **checking with this tokenizer 'bert-base-german-dbmdz-cased'
   special_tokens: null
 #    additional_special_tokens : [['[NUM]']] ** it was giving error with this argument
+
+
+
+##################
+# MODEL TRAINING #
+##################
+
+ModelTraining:
+
+  model_params:
+
+    encoder_params:
+      type_: *tokname
+      finetune: true
+      word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+      output_attentions: false
+      output_hidden_states: false
+
+    decoder_params:
+      ner_params:
+#        - type_: 'span'
+#          neg_sampling: 100
+#          max_span_len: 10
+#          span_len_embedding_dim: 25
+#          pooling_fn: 'max' # ['avg', 'rnn_local', 'attention', 'max']
+#          dropout: 0.1
+#          chunk_size: 1000
+#          use_cls: false
+#          loss_weight: 1  # [1., 1.3, '@loss_weight']
+#          remove_overlapping_spans: false # true # [true, false]
+
+        - type_: 'iobes'
+          dropout: 0.1
+          loss_weight: 1.  # [1., 1.3, '@loss_weight']
+          use_cls: false  # [true, false]
+          max_span_len: 100
+          span_len_embedding_dim: 25
+          pooling_fn: "rnn_local" # ['rnn_local', 'rnn_local', 'attention' 'avg', 'max']
+          decoding: 'rnn'  # ['rnn', 'ar_linear', 'linear']
+          label_embedding_dim: 128
+
+      re_params:
+        neg_sampling: 100
+        use_inbetween_context: true
+        biaffine: false
+        dropout: 0.1
+        pooling_fn: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # "rnn_local" # "avg" # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+        chunk_size: 1000
+        threshold: 0.5
+        loss_weight: 1  # [1., 0.7, '@loss_weight']
+        filter_impossible_relations: true  # [true, true, true, false, false]  # only quantify improvement for best model
+        remove_overlapping_relations: true  # [true, true, false, true, false]  # [true, false]
+
+#    table_to_text_mode: true
+
+  dataloader_params:
+    batch_size: 2  # [1, 2]
+    drop_last: false
+
+  optimizer_params:
+    type_: 'adamW'
+    lr: 1.e-5
+    weight_decay: 0.01  # [0., 0.01]
+    correct_bias: false
+
+  lr_scheduler_params:
+    type_: 'lin_warmup'
+    interval: 'step'
+    lr_warmup: 0.1
+
+  evaluator_params:
+    ner_f1: {}
+    re_f1:
+      mode: 'strict'
+
+  trainer_params:
+    num_epochs: 20
+    num_grad_accumulation_steps: 1        # accumulate gradients over x batches before updating weights: simulates high batch size training without memory issues
+    grad_norm: 1.  # [null, 1.0, null, '@clip']  # null                # scales gradient values such that the norm of combined grad vector equals grad_norm
+    grad_clipping: null  # [null, null, 1.0, '@clip']                   # clips gradient values to range [-grad_clipping, +grad_clipping]
+    early_stopping_patience: null  # 5
+    valid_metric: '+re_micro_f1'
+
+  seed: 42
+

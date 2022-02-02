@@ -11,9 +11,9 @@ import torch
 import torch.nn as nn
 
 
-TRAIN_LOGGERS = {'aim': 'kpi_relation_extractor.common.trainer.train_logger.aim_logger.AimLogger',
-                 'tensorboard': 'kpi_relation_extractor.common.trainer.train_logger.tensorboard_logger.TensorBoardLogger',
-                 'wandb': 'kpi_relation_extractor.trainer.common.train_logger.wandb_logger.WandbLogger'}
+TRAIN_LOGGERS = {'aim': 'edgar.trainer.train_logger.aim_logger.AimLogger',
+                 'tensorboard': 'edgar.trainer.train_logger.tensorboard_logger.TensorBoardLogger',
+                 'wandb': 'edgar.trainer.train_logger.wandb_logger.WandbLogger'}
 
 
 class TrainLogger(ABC):

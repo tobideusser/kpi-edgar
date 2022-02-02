@@ -8,7 +8,8 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import product
-from typing import List, Dict, Optional, Tuple, Iterator
+from typing import List, Dict, Optional, Tuple, Union, Iterator
+from torch import Tensor
 
 import lxml
 import pandas as pd
@@ -262,11 +263,11 @@ class Sentence:
 
     # sub word tokens and ids, e.g. BERT tokens
     tokens: Optional[List[str]] = None
-    # token_ids: Optional[Union[List[int], Tensor]] = None
-    # word2token_alignment_mask: Optional[Union[List[List[bool]], Tensor]] = None
-    # word2token_start_ids: Optional[List[int]] = None
-    # word2token_end_ids: Optional[List[int]] = None
-    #
+    token_ids: Optional[Union[List[int], Tensor]] = None
+    word2token_alignment_mask: Optional[Union[List[List[bool]], Tensor]] = None
+    word2token_start_ids: Optional[List[int]] = None
+    word2token_end_ids: Optional[List[int]] = None
+
     # entity annotations iobes format
     entities_anno_iobes: Optional[List[str]] = None
     entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
@@ -279,11 +280,11 @@ class Sentence:
     entities_pred: Optional[List[Entity]] = None
     # relation predictions
     relations_pred: Optional[List[Relation]] = None
-    #
-    # # gold annotated entities for self-training
-    # entities_anno_gold: Optional[List[Entity]] = None
-    # # gold annotated relations for self-training
-    # relations_anno_gold: Optional[List[Entity]] = None
+
+    # gold annotated entities for self-training
+    entities_anno_gold: Optional[List[Entity]] = None
+    # gold annotated relations for self-training
+    relations_anno_gold: Optional[List[Entity]] = None
 
     def __len__(self):
         return len(self.words)

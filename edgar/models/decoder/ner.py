@@ -15,8 +15,8 @@ from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
 
 logger = logging.getLogger(__name__)
 
-NER_DECODER: Dict = {"iobes": "kpi_relation_extractor.kpi_relation_extraction.models.decoder.ner.IobesNERDecoder",
-                     "span": "kpi_relation_extractor.kpi_relation_extraction.models.decoder.ner.SpanNERDecoder"}
+NER_DECODER: Dict = {"iobes": "edgar.models.decoder.ner.IobesNERDecoder",
+                     "span": "edgar.models.decoder.ner.SpanNERDecoder"}
 
 
 class NERDecoder(nn.Module):
