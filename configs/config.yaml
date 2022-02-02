@@ -65,6 +65,6 @@ AnnotationMerging:
 #####################
 
 SubWordTokenization:
-  tokenizer_name: 'bert-base-uncased' # '&tokname 'bert-base-german-dbmdz-cased'
+  tokenizer_name: 'bert-base-uncased' # '&tokname 'bert-base-german-dbmdz-cased' **checking with this tokenizer
   special_tokens: null
-#    additional_special_tokens : [['[NUM]']]
+#    additional_special_tokens : [['[NUM]']] ** it was giving error with this argument
