@@ -4,11 +4,11 @@ import numpy as np
 import torch
 from torch import nn
 
-from kpi_relation_extractor.common.data_classes import Labels
-from kpi_relation_extractor.common.trainer.utils import get_device, pad_mask, set_seeds, argsort
-from kpi_relation_extractor.kpi_relation_extraction import (ALLOWED_RELATIONS, ALLOWED_1_TO_N_ENTITIES,
+from edgar.data_classes import Labels
+from edgar.trainer.utils import get_device, pad_mask, set_seeds, argsort
+from edgar import (ALLOWED_RELATIONS, ALLOWED_1_TO_N_ENTITIES,
                                                             ALLOWED_N_TO_1_ENTITIES)
-from kpi_relation_extractor.kpi_relation_extraction.models.pooling import word2entity_embedding, PoolingRNNLocal
+from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
 
 
 class REDecoder(nn.Module):

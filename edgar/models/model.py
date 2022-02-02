@@ -3,9 +3,9 @@ from typing import Dict
 import torch.nn as nn
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-from kpi_relation_extractor.common.data_classes import Labels
-from kpi_relation_extractor.common.trainer.utils import get_device
-from kpi_relation_extractor.kpi_relation_extraction.models import SentenceEncoder, JointDecoder
+from edgar.data_classes import Labels
+from edgar.trainer.utils import get_device
+from edgar.models import SentenceEncoder, JointDecoder
 
 
 class JointNERAndREModel(nn.Module):
