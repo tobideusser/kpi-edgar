@@ -121,7 +121,7 @@ ModelTraining:
         filter_impossible_relations: true  # [true, true, true, false, false]  # only quantify improvement for best model
         remove_overlapping_relations: true  # [true, true, false, true, false]  # [true, false]
 
-#    table_to_text_mode: true
+#    table_to_text_mode: true ** it was giving error with this argument
 
   dataloader_params:
     batch_size: 2  # [1, 2]
