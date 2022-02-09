@@ -82,7 +82,7 @@ ModelTraining:
     encoder_params:
       type_: *tokname
       finetune: true
-      word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+      word_pooling: 'avg' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
       output_attentions: false
       output_hidden_states: false
 
@@ -105,7 +105,7 @@ ModelTraining:
           use_cls: false  # [true, false]
           max_span_len: 100
           span_len_embedding_dim: 25
-          pooling_fn: "rnn_local" # ['rnn_local', 'rnn_local', 'attention' 'avg', 'max']
+          pooling_fn: "max" # ['rnn_local', 'rnn_local', 'attention' 'avg', 'max']
           decoding: 'rnn'  # ['rnn', 'ar_linear', 'linear']
           label_embedding_dim: 128
 
@@ -114,7 +114,7 @@ ModelTraining:
         use_inbetween_context: true
         biaffine: false
         dropout: 0.1
-        pooling_fn: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # "rnn_local" # "avg" # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+        pooling_fn: 'avg' # ['avg', 'rnn_local', 'attention', 'max'] # "rnn_local" # "avg" # ['avg', 'rnn_local', 'attention' 'avg', 'max']
         chunk_size: 1000
         threshold: 0.5
         loss_weight: 1  # [1., 0.7, '@loss_weight']
