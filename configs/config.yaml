@@ -153,3 +153,9 @@ ModelTraining:
 
   seed: 42
 
+####################
+# MODEL PREDICTING #
+####################
+
+ModelPredicting:
+  split_types: 'valid'

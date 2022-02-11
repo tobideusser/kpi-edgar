@@ -9,7 +9,7 @@ from fluidml.flow import TaskSpec, GridTaskSpec
 
 from edgar import project_path
 from edgar.tasks import (
-    DataParsing, DataTokenizing, DataTagging, AnnotationMerging, SubWordTokenization, ModelTraining
+    DataParsing, DataTokenizing, DataTagging, AnnotationMerging, SubWordTokenization, ModelTraining, ModelPredicting
 )
 from edgar.utils.fluid_helper import configure_logging, MyLocalFileStore, TaskResource
 from edgar.utils.training_utils import get_balanced_devices
@@ -100,6 +100,7 @@ def main():
     model_training = GridTaskSpec(task=ModelTraining, gs_config=model_training_cfg,
                                   gs_expansion_method=gs_expansion_method,
                                   additional_kwargs=model_training_additional_kwargs)
+    model_predicting = TaskSpec(task=ModelPredicting, config=config['ModelPredicting'])
 
     # dependencies between tasks
     data_tokenizing.requires(data_parsing)
@@ -107,7 +108,7 @@ def main():
     annotation_merging.requires(data_tagging)
     sub_word_tokenization.requires(annotation_merging)
     model_training.requires([sub_word_tokenization, annotation_merging])
-
+    model_predicting.requires([model_training, sub_word_tokenization, data_tagging, annotation_merging])
     # all tasks
     tasks = [
         data_parsing,
@@ -115,7 +116,8 @@ def main():
         data_tagging,
         annotation_merging,
         sub_word_tokenization,
-        model_training
+        model_training,
+        model_predicting
     ]
 
     # create list of resources
