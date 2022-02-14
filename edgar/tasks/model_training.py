@@ -5,7 +5,7 @@ from typing import Dict, Union
 from fluidml.common import Task
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerFast
-
+import torch
 from edgar.data_classes import Corpus, Labels
 from edgar.trainer import Trainer
 from edgar.trainer.checkpointer import Checkpointer
@@ -166,6 +166,7 @@ class ModelTraining(Task):
         model = JointNERAndREModel.from_config(tokenizer=sub_word_tokenizer,
                                                labels=labels,
                                                **self.model_params).to(get_device())
+        # model.load_state_dict(torch.load("/cluster/kpi_rel_extr/ModelTraining/000/models/best_model.pt"))
 
         logger.info('Instantiate optimizer.')
         optimizer = Optimizer.from_config(params=model.parameters(),

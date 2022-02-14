@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Dict, Optional, Union, List, Tuple
+from typing import Dict, Optional, Union, List, Tuple, Any
+import numbers
 
 import torch
 from fluidml.common import Task
@@ -14,7 +15,7 @@ from edgar.trainer.utils import set_device, get_device, set_seed_number, set_see
 from edgar.data_loading import KPIRelationDataset, BatchCollator
 from edgar.html_creation import create_html
 from edgar.models import JointNERAndREModel
-
+from edgar.trainer.train_logger import TrainLogger
 logger = logging.getLogger(__name__)
 
 
@@ -81,7 +82,7 @@ class ModelPredicting(Task):
                         try:
                             ent['embedding'] = ent['embedding'].detach().cpu().numpy()
                             del ent['embedding']
-                        except AttributeError:
+                        except:
                             pass
 
                 for key in ['entities_pred']:
@@ -94,7 +95,7 @@ class ModelPredicting(Task):
                                 ent['unique_id'] = unique_id
                                 f_text_entities.f.create_dataset(name=unique_id, data=ent['embedding'])
                                 del ent['embedding']
-                        except AttributeError:
+                        except:
                             pass
 
             # Detach tensors and move to cpu
@@ -112,7 +113,7 @@ class ModelPredicting(Task):
                     'relations_score': batch_output['re_scores'][i],
                 }
 
-        f_text_entities.close()
+        # f_text_entities.close()
 
         metrics = None
         if self.evaluation:
@@ -169,6 +170,36 @@ class ModelPredicting(Task):
                 for rel in sent.relations_pred:
                     rel.get_entities(sent.entities_pred)
         return corpus_predicted
+
+    @staticmethod
+    def _clf_report_dict_to_str(clf_report: Dict) -> str:
+        '''Got function from train_logger class'''
+        headers = ('Type', 'Precision', 'Recall', 'F1', 'Support')
+        digits = 2
+        max_name_width = max(len(name) for name in clf_report.keys())
+        head_fmt = '    {:>{max_name_width}s} ' + ' {:>9}' * (len(headers) - 1)
+        report = '    \n'
+        report += head_fmt.format(*headers, max_name_width=max_name_width)
+        report += '    \n\n'
+        row_fmt = '    {:>{max_name_width}s} ' + ' {:>9.{digits}f}' * 3 + ' {:>9}\n'
+        for name, metrics in clf_report.items():
+            if name == 'micro avg':
+                report += '    \n'
+            row = (name,) + tuple(metrics.values())
+            report += row_fmt.format(*row, max_name_width=max_name_width, digits=digits)
+        return report
+
+    def _metrics_to_str(self, metrics: Dict[str, Any]) -> str:
+        log_message = '\n'
+        max_name_length = max(len(name) for name in metrics.keys())
+
+        for name, value in metrics.items():
+            if 'clf_report' in name:
+                value = self._clf_report_dict_to_str(clf_report=value)
+            if isinstance(value, numbers.Number):
+                value = round(value, 4)
+            log_message += f'{name:{max_name_length}} {value}\n'
+        return log_message
 
     def run(self,
             best_model: Dict,
@@ -252,28 +283,28 @@ class ModelPredicting(Task):
 
         # predict corpus
         corpus_predictions, metrics = self._predict_corpus(model, dataloader, evaluator)
-
-        # Write prediction result to corpus
-        corpus = self._write_predictions_to_corpus(corpus, corpus_predictions)
-
-        # Register entity values and relation entity objects in entities and relations (annotated and predicted)
-        corpus = self._register_entity_values_and_relation_entities(corpus)
-
-        if self.html_creation:
-            logger.info('Create html evaluation.')
-            current_run_dir = self.get_store_context()
-            html_report_dir = os.path.join(current_run_dir, 'html')
-            os.makedirs(html_report_dir, exist_ok=True)
-
-            if self.split_types:
-                sentences = [sentence for sentence in corpus.sentences if sentence.split_type in self.split_types]
-            else:
-                sentences = [sentence for sentence in corpus.sentences]
-            create_html(sentences, out_dir=os.path.join(current_run_dir, 'html'))
-
-        if self.train_mode:
-            self.save(corpus.to_dict(), 'corpus_predicted', type_='pickle')
-            if metrics:
-                self.save(metrics, 'metrics', type_='json')
-        else:
-            return corpus
+        print(self._metrics_to_str(metrics))
+        # # Write prediction result to corpus
+        # corpus = self._write_predictions_to_corpus(corpus, corpus_predictions)
+        #
+        # # Register entity values and relation entity objects in entities and relations (annotated and predicted)
+        # corpus = self._register_entity_values_and_relation_entities(corpus)
+        #
+        # if self.html_creation:
+        #     logger.info('Create html evaluation.')
+        #     current_run_dir = self.get_store_context()
+        #     html_report_dir = os.path.join(current_run_dir, 'html')
+        #     os.makedirs(html_report_dir, exist_ok=True)
+        #
+        #     if self.split_types:
+        #         sentences = [sentence for sentence in corpus.sentences if sentence.split_type in self.split_types]
+        #     else:
+        #         sentences = [sentence for sentence in corpus.sentences]
+        #     create_html(sentences, out_dir=os.path.join(current_run_dir, 'html'))
+        #
+        # if self.train_mode:
+        #     self.save(corpus.to_dict(), 'corpus_predicted', type_='pickle')
+        #     if metrics:
+        #         self.save(metrics, 'metrics', type_='json')
+        # else:
+        #     return corpus
