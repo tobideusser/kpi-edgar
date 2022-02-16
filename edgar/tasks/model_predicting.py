@@ -283,7 +283,12 @@ class ModelPredicting(Task):
 
         # predict corpus
         corpus_predictions, metrics = self._predict_corpus(model, dataloader, evaluator)
-        print(self._metrics_to_str(metrics))
+        result_print = self._metrics_to_str(metrics)
+        print(result_print)
+        # writing result to file
+        with open("/scratch/data/edgar/above200B/" + sub_word_tokenizer.type_, 'w') as out:
+            for line in result_print.split("\n"):
+                out.write(line + "\n")
         # # Write prediction result to corpus
         # corpus = self._write_predictions_to_corpus(corpus, corpus_predictions)
         #
