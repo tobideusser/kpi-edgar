@@ -5,11 +5,11 @@ import os
 
 import yaml
 from fluidml import Flow, Swarm
-from fluidml.flow import TaskSpec
+from fluidml.flow import TaskSpec, GridTaskSpec
 
 from edgar import project_path
 from edgar.tasks import (
-    DataParsing, DataTokenizing, DataTagging, AnnotationMerging, SubWordTokenization, ModelTraining
+    DataParsing, DataTokenizing, DataTagging, AnnotationMerging, SubWordTokenization, ModelTraining, ModelPredicting
 )
 from edgar.utils.fluid_helper import configure_logging, MyLocalFileStore, TaskResource
 from edgar.utils.training_utils import get_balanced_devices
@@ -75,24 +75,49 @@ def main():
     data_tokenization_cfg = config["DataTokenizing"]
     data_tagging_cfg = config["DataTagging"]
     annotation_merging_cfg = config["AnnotationMerging"]
+    sub_word_tokenization_cfg = config['SubWordTokenization']
+    model_training_cfg = config['ModelTraining']
+    model_training_additional_kwargs = {
+        'checkpointer_params':
+            {
+                'serialization_dir': 'models',
+                'num_serialized_models_to_keep': 1
+            },
+        'train_logger_params':
+            {
+                'type_': 'tensorboard',
+                'log_dir': 'logs',
+            },
+        'warm_start': warm_start,
+    }
 
     # create all task specs
     data_parsing = TaskSpec(task=DataParsing, config=data_parsing_cfg)
     data_tokenizing = TaskSpec(task=DataTokenizing, config=data_tokenization_cfg)
     data_tagging = TaskSpec(task=DataTagging, config=data_tagging_cfg)
     annotation_merging = TaskSpec(task=AnnotationMerging, config=annotation_merging_cfg)
+    sub_word_tokenization = GridTaskSpec(task=SubWordTokenization, gs_config=sub_word_tokenization_cfg)
+    model_training = GridTaskSpec(task=ModelTraining, gs_config=model_training_cfg,
+                                  gs_expansion_method=gs_expansion_method,
+                                  additional_kwargs=model_training_additional_kwargs)
+    model_predicting = TaskSpec(task=ModelPredicting, config=config['ModelPredicting'])
 
     # dependencies between tasks
     data_tokenizing.requires(data_parsing)
     data_tagging.requires(data_tokenizing)
     annotation_merging.requires(data_tagging)
-
+    sub_word_tokenization.requires(annotation_merging)
+    model_training.requires([sub_word_tokenization, annotation_merging])
+    model_predicting.requires([model_training, sub_word_tokenization, data_tagging, annotation_merging])
     # all tasks
     tasks = [
         data_parsing,
         data_tokenizing,
         data_tagging,
-        annotation_merging
+        annotation_merging,
+        sub_word_tokenization,
+        model_training,
+        model_predicting
     ]
 
     # create list of resources

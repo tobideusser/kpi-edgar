@@ -8,7 +8,8 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import product
-from typing import List, Dict, Optional, Tuple, Iterator
+from typing import List, Dict, Optional, Tuple, Union, Iterator
+from torch import Tensor
 
 import lxml
 import pandas as pd
@@ -171,6 +172,8 @@ class Entity:
     end: int
     _value: Optional[str] = None
     score: Optional[float] = None
+    embedding: Optional[Union[List[float], Tensor]] = None
+    # unique_id: Optional[str] = None
 
     def get_value(self, words: List[Word]) -> str:
         if self._value is None:
@@ -201,6 +204,7 @@ class Relation:
     head_entity: Optional[Entity] = None
     tail_entity: Optional[Entity] = None
     is_symmetric: bool = True
+    embedding: Optional[Union[List[float], Tensor]] = None
 
     def __eq__(self, other):
         if self.head_entity is None or self.tail_entity is None:
@@ -262,14 +266,14 @@ class Sentence:
 
     # sub word tokens and ids, e.g. BERT tokens
     tokens: Optional[List[str]] = None
-    # token_ids: Optional[Union[List[int], Tensor]] = None
-    # word2token_alignment_mask: Optional[Union[List[List[bool]], Tensor]] = None
-    # word2token_start_ids: Optional[List[int]] = None
-    # word2token_end_ids: Optional[List[int]] = None
-    #
-    # # entity annotations iobes format
-    # entities_anno_iobes: Optional[List[str]] = None
-    # entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
+    token_ids: Optional[Union[List[int], Tensor]] = None
+    word2token_alignment_mask: Optional[Union[List[List[bool]], Tensor]] = None
+    word2token_start_ids: Optional[List[int]] = None
+    word2token_end_ids: Optional[List[int]] = None
+
+    # entity annotations iobes format
+    entities_anno_iobes: Optional[List[str]] = None
+    entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
     #
     # entity annotations
     entities_anno: Optional[List[Entity]] = None
@@ -279,11 +283,11 @@ class Sentence:
     entities_pred: Optional[List[Entity]] = None
     # relation predictions
     relations_pred: Optional[List[Relation]] = None
-    #
-    # # gold annotated entities for self-training
-    # entities_anno_gold: Optional[List[Entity]] = None
-    # # gold annotated relations for self-training
-    # relations_anno_gold: Optional[List[Entity]] = None
+
+    # gold annotated entities for self-training
+    entities_anno_gold: Optional[List[Entity]] = None
+    # gold annotated relations for self-training
+    relations_anno_gold: Optional[List[Entity]] = None
 
     def __len__(self):
         return len(self.words)
@@ -319,15 +323,36 @@ class Sentence:
     def from_dict(cls, d: Dict) -> Sentence:
         words = d.get("words")
         d["words"] = [Word.from_dict(word) for word in words] if words else None
+
         edgar_entities = d.get("edgar_entities")
         d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if edgar_entities \
             else None
+
+        entities_anno = d.get('entities_anno', None)
+        d['entities_anno'] = [Entity.from_dict(entity)
+                              for entity in entities_anno] if entities_anno is not None else None
+
+        entities_pred = d.get('entities_pred', None)
+        d['entities_pred'] = [Entity.from_dict(entity)
+                              for entity in entities_pred] if entities_pred is not None else None
+
+        relations_anno = d.get('relations_anno', None)
+        d['relations_anno'] = [Relation.from_dict(relation)
+                               for relation in relations_anno] if relations_anno is not None else None
+
+        relations_pred = d.get('relations_pred', None)
+        d['relations_pred'] = [Relation.from_dict(relation)
+                               for relation in relations_pred] if relations_pred is not None else None
         return cls(**d)
 
     def to_dict(self) -> Dict:
         d = self.__dict__
         d["words"] = [word.to_dict() for word in d["words"]] if self.words else None
         d["edgar_entities"] = [entity.to_dict() for entity in self.edgar_entities] if self.edgar_entities else None
+        d['entities_anno'] = [entity.to_dict() for entity in d['entities_anno']] if self.entities_anno is not None else None
+        d['entities_pred'] = [entity.to_dict() for entity in d['entities_pred']] if self.entities_pred is not None else None
+        d['relations_anno'] = [entity.to_dict() for entity in d['relations_anno']] if self.relations_anno is not None else None
+        d['relations_pred'] = [entity.to_dict() for entity in d['relations_pred']] if self.relations_pred is not None else None
         return d
 
 

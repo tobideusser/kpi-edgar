@@ -3,9 +3,9 @@ from typing import Dict
 import torch
 from torch import nn
 
-from kpi_relation_extractor.common.data_classes import Labels
-from kpi_relation_extractor.common.trainer.utils import get_device
-from kpi_relation_extractor.kpi_relation_extraction.models.decoder import REDecoder, NERDecoder
+from edgar.data_classes import Labels
+from edgar.trainer.utils import get_device
+from edgar.models.decoder import REDecoder, NERDecoder
 
 
 class JointDecoder(nn.Module):

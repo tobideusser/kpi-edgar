@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 
-from kpi_relation_extractor.common.trainer.utils import get_device
+from edgar.trainer.utils import get_device
 
 
 logger = logging.getLogger(__name__)

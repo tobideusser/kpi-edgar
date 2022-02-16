@@ -6,9 +6,8 @@ import torch.nn as nn
 from transformers import AutoConfig, AutoModel
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-from kpi_relation_extractor.common.trainer.utils import get_device
-from kpi_relation_extractor.kpi_relation_extraction.models.pooling import (PoolingRNNGlobal, PoolingRNNLocal,
-                                                                           token2word_embedding)
+from edgar.trainer.utils import get_device
+from edgar.models.pooling import (PoolingRNNGlobal, PoolingRNNLocal, token2word_embedding)
 
 logger = logging.getLogger(__name__)
 

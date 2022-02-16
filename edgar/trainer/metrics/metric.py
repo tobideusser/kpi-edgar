@@ -5,8 +5,8 @@ from typing import Iterable, Dict, Any
 import torch
 
 
-METRICS = {'ner_f1': 'kpi_relation_extractor.common.trainer.metrics.fscore.NERF1',
-           're_f1': 'kpi_relation_extractor.common.trainer.metrics.fscore.REF1'}
+METRICS = {'ner_f1': 'edgar.trainer.metrics.fscore.NERF1',
+           're_f1': 'edgar.trainer.metrics.fscore.REF1'}
 
 
 class Metric(ABC):

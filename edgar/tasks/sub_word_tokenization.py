@@ -7,8 +7,8 @@ from transformers import AutoTokenizer
 from tqdm import tqdm
 import torch
 
-from kpi_relation_extractor.common.data_classes import Corpus
-from kpi_relation_extractor.common.trainer.utils import set_seed_number, set_seeds
+from edgar.data_classes import Corpus
+from edgar.trainer.utils import set_seed_number, set_seeds
 
 
 logger = logging.getLogger(__name__)
@@ -115,3 +115,15 @@ class SubWordTokenization(Task):
             self.save(self.sub_word_tokenizer, 'sub_word_tokenizer', type_='tokenizer')
         else:
             return corpus_tokenized, self.sub_word_tokenizer
+
+
+
+if __name__ == '__main__':
+    import os
+    import pickle
+    corpus_pred_path = '/scratch/data/edgar/above200B/AnnotationMerging/000/corpus_tagged.p'
+    if os.path.isfile(corpus_pred_path):
+        with open(corpus_pred_path, 'rb') as f:
+            file_load = pickle.load(f)
+
+    corpus_predicted = Corpus.from_dict(file_load)
