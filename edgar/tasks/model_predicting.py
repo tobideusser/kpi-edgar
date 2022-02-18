@@ -79,6 +79,7 @@ class ModelPredicting(Task):
                 # delete relation embeddings to save space of corpus object (not used atm)
                 for key in ['relations_pred', 'relations_anno', 'entities_anno']:
                     for ent in batch_output[key][i]:
+                        # todo: debug -> probably from different version of the other project!
                         try:
                             ent['embedding'] = ent['embedding'].detach().cpu().numpy()
                             del ent['embedding']

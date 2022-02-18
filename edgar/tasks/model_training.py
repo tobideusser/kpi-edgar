@@ -1,6 +1,7 @@
+import json
 import logging
 import os
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 
 from fluidml.common import Task
 from torch.utils.data import DataLoader
@@ -24,19 +25,20 @@ class ModelTraining(Task):
 
     publishes = ['best_model']
 
-    def __init__(self,
-                 model_params: Dict,
-                 dataloader_params: Dict,
-                 optimizer_params: Dict,
-                 lr_scheduler_params: Dict,
-                 evaluator_params: Dict,
-                 checkpointer_params: Dict,
-                 train_logger_params: Dict,
-                 trainer_params: Dict,
-                 seed: int = 42,
-                 combine_train_valid: bool = False,
-                 warm_start: bool = False
-                 ):
+    def __init__(
+            self,
+            model_params: Dict,
+            dataloader_params: Dict,
+            optimizer_params: Dict,
+            lr_scheduler_params: Dict,
+            evaluator_params: Dict,
+            checkpointer_params: Dict,
+            train_logger_params: Dict,
+            trainer_params: Dict,
+            seed: int = 42,
+            combine_train_valid: bool = False,
+            warm_start: bool = False
+    ):
         super().__init__()
 
         # config
@@ -51,6 +53,11 @@ class ModelTraining(Task):
         self.trainer_params = trainer_params
         self.warm_start = warm_start
         self.seed = seed
+        self.type_ = self.model_params.pop("type_")
+        self.path_pretrained_model = self.model_params.pop("path_pretrained_model", None)
+        if self.type_ in ["pretrained_decoder", "pretrained_full"] and not self.path_pretrained_model:
+            raise AttributeError("If 'type_' is of a pretrained variant, a path to the pretrained model hast to be "
+                                 "specified in 'path_pretrained_model'!")
 
     def _create_torch_datasets(self, corpus: Corpus) -> Dict[str, KPIRelationDataset]:
         if self.combine_train_valid:
@@ -166,7 +173,31 @@ class ModelTraining(Task):
         model = JointNERAndREModel.from_config(tokenizer=sub_word_tokenizer,
                                                labels=labels,
                                                **self.model_params).to(get_device())
-        model.load_state_dict(torch.load("/cluster/kpi_rel_extr/ModelTraining/002/models/best_model.pt"))
+        if self.type_ == "pretrained_full":
+            path_to_state_dict = os.path.join(self.path_pretrained_model, "models", "best_model.pt")
+            model.load_state_dict(torch.load(path_to_state_dict))
+        elif self.type_ == "pretrained_decoder":
+            # load config
+            path_to_pretrained_cfg = os.path.join(self.path_pretrained_model, "config.json")
+            with open(path_to_pretrained_cfg) as json_cfg:
+                pretrained_cfg = json.load(json_cfg)
+
+            # extract the model params and tokeniser
+            pretrained_model_params = pretrained_cfg["ModelTraining"]["model_params"]
+
+            # load tokeniser
+            path_to_pretrained_tokenizer = os.path.join(self.path_pretrained_model, "sub_word_tokenizer")
+            pretrained_sub_word_tokenizer = PreTrainedTokenizerFast.from_pretrained(path_to_pretrained_tokenizer)
+            pretrained_sub_word_tokenizer.type_ = pretrained_cfg["SubWordTokenization"]["tokenizer_name"]
+
+            # init a seperate model
+            pretrained_model = JointNERAndREModel.from_config(
+                tokenizer=pretrained_sub_word_tokenizer,
+                labels=labels,
+                **pretrained_model_params
+            ).to(get_device())
+
+            model.reinitialise_encoder(tokenizer=sub_word_tokenizer, encoder_params=self.model_params["encoder_params"])
 
         logger.info('Instantiate optimizer.')
         optimizer = Optimizer.from_config(params=model.parameters(),

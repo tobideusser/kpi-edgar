@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 setup(
     name="edgar",
     version="0.1",
-    author="Tobias Deusser, Lars Hillebrand",
+    author="Tobias Deusser, Lars Hillebrand, Syed Musharraf Ali",
     packages=find_packages(),
     install_requires=["aim",
                       "babel",

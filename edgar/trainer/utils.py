@@ -29,7 +29,7 @@ def get_balanced_devices(count: Optional[int] = None,
     return devices
 
 
-def pad_mask(seqlens: List[int], device: Union[str, torch.device] = "cpu") -> torch.Tensor:
+def get_padding_mask(seqlens: List[int], device: Union[str, torch.device] = "cpu") -> torch.Tensor:
     mask = torch.zeros((len(seqlens), max(seqlens)), dtype=torch.bool, device=device)
     for i, l in enumerate(seqlens):
         mask[i, :l] = 1
@@ -98,3 +98,7 @@ def detach_batch(batch: Dict) -> Dict:
 
 def argsort(seq: Sequence) -> List[int]:
     return sorted(range(len(seq)), key=seq.__getitem__)
+
+
+def ceildiv(a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
+    return -(a // -b)

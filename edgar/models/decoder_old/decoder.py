@@ -5,7 +5,7 @@ from torch import nn
 
 from edgar.data_classes import Labels
 from edgar.trainer.utils import get_device
-from edgar.models.decoder import REDecoder, NERDecoder
+from edgar.models.decoder_old import REDecoder, NERDecoder
 
 
 class JointDecoder(nn.Module):

@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from edgar.data_classes import Labels
-from edgar.trainer.utils import get_device, pad_mask, set_seeds, argsort
+from edgar.trainer.utils import get_device, get_padding_mask, set_seeds, argsort
 from edgar import (ALLOWED_RELATIONS, ALLOWED_1_TO_N_ENTITIES,
                                                             ALLOWED_N_TO_1_ENTITIES)
 from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
@@ -264,7 +264,7 @@ class REDecoder(nn.Module):
         tags = batch["pair_tags"]
 
         seqlens = batch["n_pairs"]
-        loss_mask = pad_mask(seqlens, device=get_device())
+        loss_mask = get_padding_mask(seqlens, device=get_device())
 
         # loss = nn.BCELoss(reduction="none")(scores.view(-1, len(self.vocab.relations.val2idx)), tags.view(-1))
         loss = nn.BCELoss(reduction="none")(scores, tags)

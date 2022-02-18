@@ -1,0 +1,1 @@
+from .span import SpanNERDecoder

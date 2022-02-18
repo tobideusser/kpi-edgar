@@ -23,6 +23,12 @@ class JointNERAndREModel(nn.Module):
     def predict(self, batch: Dict) -> Dict:
         return self.forward(batch)
 
+    def reinitialise_encoder(self, tokenizer, encoder_params):
+        """
+        Reinitialises the encoder, used to load a fully trained model and replace / reset the encoder.
+        """
+        self.encoder = SentenceEncoder(tokenizer=tokenizer, **encoder_params).to(get_device())
+
     @classmethod
     def from_config(
             cls,

@@ -9,7 +9,7 @@ import torch
 from torch import nn
 
 from edgar.data_classes import Labels
-from edgar.trainer.utils import get_device, pad_mask, set_seeds, argsort
+from edgar.trainer.utils import get_device, get_padding_mask, set_seeds, argsort
 from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
 
 
@@ -187,7 +187,7 @@ class SpanNERDecoder(NERDecoder):
         tags = batch["span_tags"].long()
 
         seqlens = batch["n_spans"]
-        loss_mask = pad_mask(seqlens, device=get_device())
+        loss_mask = get_padding_mask(seqlens, device=get_device())
 
         loss = nn.CrossEntropyLoss(reduction="none")(logits.view(-1, len(self.labels.entities.val2idx)), tags.view(-1))
         masked_loss = loss * loss_mask.view(-1).float()
@@ -452,7 +452,7 @@ class IobesNERDecoder(NERDecoder):
         tags = batch["entities_anno_iobes_ids"].to(get_device())
 
         seqlens = batch["n_words"]
-        loss_mask = pad_mask(seqlens, device=get_device())
+        loss_mask = get_padding_mask(seqlens, device=get_device())
 
         loss = nn.CrossEntropyLoss(reduction="none")(logits.view(-1, len(self.labels.iobes.val2idx)), tags.view(-1))
         masked_loss = loss * loss_mask.view(-1).float()
