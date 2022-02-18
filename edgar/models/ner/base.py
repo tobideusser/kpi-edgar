@@ -9,8 +9,8 @@ from torch import nn
 
 logger = logging.getLogger(__name__)
 
-NER_DECODER: Dict = {"iobes": "kpi_relation_extractor.kpi_relation_extraction.models.ner.IobesNERDecoder",
-                     "span": "kpi_relation_extractor.kpi_relation_extraction.models.ner.SpanNERDecoder"}
+NER_DECODER: Dict = {"iobes": "edgar.models.ner.IobesNERDecoder",
+                     "span": "edgar.models.ner.SpanNERDecoder"}
 
 
 class NERDecoder(nn.Module):

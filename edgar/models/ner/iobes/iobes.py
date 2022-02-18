@@ -13,10 +13,10 @@ from edgar.models.ner import NERDecoder
 
 logger = logging.getLogger(__name__)
 
-IOBES_DECODER: Dict = {"linear": "kpi_relation_extractor.kpi_relation_extraction.models.ner.iobes.Linear",
-                       "crf": "kpi_relation_extractor.kpi_relation_extraction.models.ner.iobes.CRF",
-                       "rnn": "kpi_relation_extractor.kpi_relation_extraction.models.ner.iobes.RNN",
-                       "transformer": "kpi_relation_extractor.kpi_relation_extraction.models.ner.iobes.NERTransformer"}
+IOBES_DECODER: Dict = {"linear": "edgar.models.ner.iobes.Linear",
+                       "crf": "edgar.models.ner.iobes.CRF",
+                       "rnn": "edgar.models.ner.iobes.RNN",
+                       "transformer": "edgar.models.ner.iobes.NERTransformer"}
 
 
 def iobes2iob(iobes):

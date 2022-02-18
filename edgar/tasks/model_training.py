@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from copy import deepcopy
 from typing import Dict, Union, Optional
 
 from fluidml.common import Task
@@ -172,7 +173,7 @@ class ModelTraining(Task):
         sub_word_tokenizer.type_ = self.unique_config['SubWordTokenization']['tokenizer_name']
         model = JointNERAndREModel.from_config(tokenizer=sub_word_tokenizer,
                                                labels=labels,
-                                               **self.model_params).to(get_device())
+                                               **self.model_params).to("cpu")
         if self.type_ == "pretrained_full":
             path_to_state_dict = os.path.join(self.path_pretrained_model, "models", "best_model.pt")
             model.load_state_dict(torch.load(path_to_state_dict))
@@ -195,9 +196,18 @@ class ModelTraining(Task):
                 tokenizer=pretrained_sub_word_tokenizer,
                 labels=labels,
                 **pretrained_model_params
-            ).to(get_device())
+            ).to("cpu")
 
-            model.reinitialise_encoder(tokenizer=sub_word_tokenizer, encoder_params=self.model_params["encoder_params"])
+            # deepcopy the decoder part of the pretrained model to the untrained model, i.e. the decoder weights will
+            # not be randomly initialised, but will use weights from the previous training (probably on another
+            # dataset), whereas the encoder will be a "vanilla" BERT encoder
+            model.decoder = deepcopy(pretrained_model.decoder)
+
+            # delete loaded pretrained model to free up space
+            del pretrained_model
+
+        # move model to cuda processor
+        model.to(get_device())
 
         logger.info('Instantiate optimizer.')
         optimizer = Optimizer.from_config(params=model.parameters(),
