@@ -1,5 +1,5 @@
 # Base directory to store all task outputs
-base_dir: "/scratch/data/edgar/debug_2/"
+base_dir: "/scratch/data/edgar/v2/"
 
 ################
 # DATA PARSING #
@@ -36,7 +36,7 @@ DataTagging:
 #####################
 
 AnnotationMerging:
-  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations.xlsx"
+  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations_v2.xlsx"
   filter_for_annotated_docs: true  # set false for self-training
   ignore_noncritical_warnings: true
   skip_sentences_with_error: true
@@ -67,7 +67,7 @@ AnnotationMerging:
 SubWordTokenization:
   # english: "bert-base-cased"
   # multilingual: "bert-base-multilingual-cased"
-  tokenizer_name: &tokname "bert-base-cased" # **checking with this tokenizer 'bert-base-german-dbmdz-cased'
+  tokenizer_name: &tokname "bert-base-multilingual-cased" # **checking with this tokenizer 'bert-base-german-dbmdz-cased'
   special_tokens: null
 #    additional_special_tokens : [['[NUM]']] ** it was giving error with this argument
 
@@ -134,7 +134,7 @@ ModelTraining:
 #    table_to_text_mode: true ** it was giving error with this argument
 
   dataloader_params:
-    batch_size: 2  # [1, 2]
+    batch_size: 4  # [1, 2]
     drop_last: false
 
   optimizer_params:
@@ -154,7 +154,7 @@ ModelTraining:
       mode: 'strict'
 
   trainer_params:
-    num_epochs: 20
+    num_epochs: 1000
     num_grad_accumulation_steps: 1        # accumulate gradients over x batches before updating weights: simulates high batch size training without memory issues
     grad_norm: 1.  # [null, 1.0, null, '@clip']  # null                # scales gradient values such that the norm of combined grad vector equals grad_norm
     grad_clipping: null  # [null, null, 1.0, '@clip']                   # clips gradient values to range [-grad_clipping, +grad_clipping]

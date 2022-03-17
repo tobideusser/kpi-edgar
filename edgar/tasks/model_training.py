@@ -37,7 +37,7 @@ class ModelTraining(Task):
             train_logger_params: Dict,
             trainer_params: Dict,
             seed: int = 42,
-            combine_train_valid: bool = False,
+            combine_train_valid: bool = True,
             warm_start: bool = False
     ):
         super().__init__()
@@ -62,9 +62,12 @@ class ModelTraining(Task):
 
     def _create_torch_datasets(self, corpus: Corpus) -> Dict[str, KPIRelationDataset]:
         if self.combine_train_valid:
+            datasets = {'train': None, 'valid': None}
             sentences = [sentence for sentence in corpus.sentences if sentence.split_type in ["train", "valid"]]
             logger.debug(f'train valid combined len: {len(sentences)}')
-            datasets = {'train': KPIRelationDataset(sentences=sentences)}
+            datasets["train"] = KPIRelationDataset(sentences=sentences)
+            sentences = [sentence for sentence in corpus.sentences if sentence.split_type == "test"]
+            datasets["valid"] = KPIRelationDataset(sentences=sentences)
         else:
             datasets = {'train': None, 'valid': None}
             for split_type in datasets:
