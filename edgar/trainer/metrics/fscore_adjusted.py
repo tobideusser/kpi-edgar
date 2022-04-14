@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict
+from copy import deepcopy
+from typing import List, Optional, Dict, Set
 
 import numpy as np
 import torch
@@ -263,10 +264,66 @@ class NERF1(Metric):
                                     for span, ent_type in s.items()]
                                    for s in entities_pred])
 
+    @staticmethod
+    def overlap_relative_span_size(
+            base_span: List,
+            span_to_compare: List,
+            relative_to_spans_to_compare: bool = False
+    ):
+        """
+        Calculates the relative overlap of the base span to a list of spans. The overlap is relative to the base span by
+        default and by setting relative_to_spans_to_compare to True it will be relative to span with the highest
+        overlap.
+        """
+        assert len(base_span) == 2
+
+        # create a set / range spanning from the start (base_span[0]) to the end (base_span[1]) of the span
+        base_range = set(range(base_span[0], base_span[1]))
+
+        # the length of the denominator by which the the maximum overlap will be divided. By default, i.e. if
+        # relative_to_spans_to_compare is set to False, this will be the length of the base span.
+        len_denominator = base_span[1] - base_span[0]
+
+        # variable to hold the maximum absolute overlap
+        max_overlap = 0
+
+        # loop through all spans that will be compared
+        for span_to_compare in span_to_compare:
+
+            # create a set / range spanning from the start to the end of the span that will be compared to the base span
+            stc = set(range(span_to_compare[0], span_to_compare[1]))
+
+            # calculate the actual absolute overlap of the base span and the compared span
+            len_overlap = len(stc.intersection(base_range))
+
+            # save the absolute overlap if it is largest measured so far
+            if len_overlap > max_overlap:
+                max_overlap = len_overlap
+
+                # calculate the length of the denominator if the option is set to use the compared span as base for it
+                if relative_to_spans_to_compare:
+                    len_denominator = max(span_to_compare) - min(span_to_compare)
+
+        # return the relative overlap
+        return max_overlap / len_denominator, max_overlap, len_denominator
+
     def get_metric(self, reset: bool = False):
         assert len(self.pred_entities) == len(self.gt_entities)
 
-        statistics = {ent: {"tp": 0, "fp": 0, "fn": 0, "support": 0} for ent in self.entity_types}
+        # statistics = {ent: {"tp": 0, "fp": 0, "fn": 0, "support": 0} for ent in self.entity_types}
+        statistics = {
+            ent: {
+                "support": 0,
+                # Strict: exact boundary surface string match and entity type
+                "strict": {"tp": 0, "fp": 0, "fn": 0},
+                # Partial & Type: some overlap between the system tagged entity and the gold annotation
+                "partial_type": {"tp": 0, "fp": 0, "fn": 0},
+                # Exact: exact boundary match over the surface string, regardless of the type
+                "exact": {"tp": 0, "fp": 0, "fn": 0},
+                # Partial: partial boundary match over the surface string, regardless of the type
+                "partial": {"tp": 0, "fp": 0, "fn": 0}
+            } for ent in self.entity_types
+        }
         clf_report = {}
 
         # Count GT entities and Predicted entities
@@ -276,75 +333,235 @@ class NERF1(Metric):
 
         # Count TP, FP and FN per type
         for pred_sent, gt_sent in zip(self.pred_entities, self.gt_entities):
-            for ent_type in self.entity_types:
-                # if ent_type not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']:
-                pred_ents = {(ent["start"], ent["end"]) for ent in pred_sent if ent["type_"] == ent_type}
-                gt_ents = {(ent["start"], ent["end"]) for ent in gt_sent if ent["type_"] == ent_type}
-                statistics[ent_type]["support"] += len(gt_ents)
-                statistics[ent_type]["tp"] += len(pred_ents & gt_ents)
-                statistics[ent_type]["fp"] += len(pred_ents - gt_ents)
-                statistics[ent_type]["fn"] += len(gt_ents - pred_ents)
+            # pred_ents = {(ent["start"], ent["end"]) for ent in pred_sent if ent["type_"] == ent_type}
+            # gt_ents = {(ent["start"], ent["end"]) for ent in gt_sent if ent["type_"] == ent_type}
+
+            # TP and FN by looking from ground truth
+            for ground_truth_entity in gt_sent:
+                gt_ent_type = ground_truth_entity["type_"]
+                # gt_ent_span = [ground_truth_entity["start"], ground_truth_entity["end"]]
+                ground_truth_entity_span = set(range(ground_truth_entity["start"], ground_truth_entity["end"]))
+                length_ground_truth_entity = ground_truth_entity["end"] - ground_truth_entity["start"]
+
+                # measures how much of the entity was already predicted with the correct type
+                largest_partial_type_overlap = 0
+                largest_partial_type_overlap_fraction = [0, length_ground_truth_entity]
+                # measures how much of the entity was already predicted regardless of type
+                largest_partial_overlap = 0
+                largest_partial_overlap_fraction = [0, length_ground_truth_entity]
+
+                statistics[gt_ent_type]["support"] += 1
+
+                best_strict_entity = None
+                best_partial_type_entity = None
+                best_exact_entity = None
+                best_partial_entity = None
+
+                for predicted_entity in pred_sent:
+                    # predicted_entity_span = [predicted_entity["start"], predicted_entity["end"]]
+                    predicted_entity_span = set(range(predicted_entity["start"], predicted_entity["end"]))
+                    absolute_overlap = len(predicted_entity_span.intersection(ground_truth_entity_span))
+                    relative_overlap = absolute_overlap / length_ground_truth_entity
+                    # relative_overlap = self.overlap_relative_span_size(
+                    #     base_span=gt_ent_span, span_to_compare=[predicted_entity_span]
+                    # )
+
+                    # 5 possible cases (as seen in variable statistics definition):
+                    #   case 1: exact boundary surface string match and entity type
+                    #   case 2: some overlap between the system tagged entity and the gold annotation
+                    #   case 3: exact boundary match over the surface string, regardless of the type
+                    #   case 4: partial boundary match over the surface string, regardless of the type
+                    #   case 5: no match at all
+                    if predicted_entity["type_"] == gt_ent_type:
+                        if relative_overlap == 1:
+                            # case 1
+                            statistics[gt_ent_type]["strict"]["tp"] += 1
+                            statistics[gt_ent_type]["exact"]["tp"] += 1
+                            largest_partial_type_overlap = 1
+                            largest_partial_type_overlap_fraction[0] = absolute_overlap
+                            largest_partial_overlap = 1
+                            largest_partial_overlap_fraction[0] = absolute_overlap
+                            # predicted_entity["strict"] = True
+                            # ground_truth_entity["strict"] = 1
+                            best_strict_entity = predicted_entity
+                            break  # can break loop, since all other predicted entities will be inferior
+                        else:
+                            if relative_overlap > largest_partial_type_overlap:
+                                # case 2
+                                largest_partial_type_overlap = relative_overlap
+                                largest_partial_type_overlap_fraction[0] = absolute_overlap
+                                best_partial_type_entity = predicted_entity
+                            if relative_overlap > largest_partial_overlap:
+                                # case 4
+                                largest_partial_overlap = relative_overlap
+                                largest_partial_overlap_fraction[0] = absolute_overlap
+                                best_partial_entity = predicted_entity
+                    else:
+                        if relative_overlap == 1:
+                            # case 3
+                            statistics[gt_ent_type]["exact"]["tp"] += 1
+                            largest_partial_overlap = 1
+                            largest_partial_overlap_fraction[0] = absolute_overlap
+                            # predicted_entity["exact"] = True
+                            best_exact_entity = predicted_entity
+                            best_partial_entity = predicted_entity
+                        elif relative_overlap > largest_partial_overlap:
+                            # case 4
+                            largest_partial_overlap = relative_overlap
+                            largest_partial_overlap_fraction[0] = absolute_overlap
+                            best_partial_entity = predicted_entity
+
+                # increase the true positive scores of partial_type and partial by the largest overlap found
+                statistics[gt_ent_type]["partial_type"]["tp"] += largest_partial_type_overlap
+                statistics[gt_ent_type]["partial"]["tp"] += largest_partial_overlap
+
+                # calculate by how to increase to increase the false negative of partial_type and partial
+                # this will be the reverse the true positive score
+                statistics[gt_ent_type]["partial_type"]["fn"] += 1 - largest_partial_type_overlap
+                statistics[gt_ent_type]["partial"]["fn"] += 1 - largest_partial_overlap
+
+                if best_strict_entity:
+                    best_strict_entity["used_in_strict_metric"] = True
+                    best_strict_entity["used_in_partial_type_metric"] = True
+                    best_strict_entity["used_in_exact_metric"] = True
+                    best_strict_entity["used_in_partial_metric"] = True
+                    best_strict_entity["partial_type_overlap"] = 1
+                    best_strict_entity["partial_overlap"] = 1
+                    best_strict_entity["partial_type_overlap_fraction"] = largest_partial_type_overlap_fraction
+                    best_strict_entity["partial_overlap_fraction"] = largest_partial_overlap_fraction
+                else:
+                    # no strict match was found, increase false negative counter by 1
+                    statistics[gt_ent_type]["strict"]["fn"] += 1
+
+                    if best_exact_entity:
+                        best_exact_entity["used_in_exact_metric"] = True
+                    else:
+                        # no exact match was found, increase false negative counter by 1
+                        statistics[gt_ent_type]["exact"]["fn"] += 1
+
+                    if best_partial_type_entity:
+                        best_partial_type_entity["used_in_partial_type_metric"] = True
+                        best_partial_type_entity["partial_type_overlap"] = largest_partial_type_overlap
+                        best_partial_type_entity["partial_type_overlap_fraction"] = \
+                            largest_partial_type_overlap_fraction
+                    if best_partial_entity:
+                        best_partial_entity["used_in_partial_metric"] = True
+                        best_partial_entity["partial_overlap"] = largest_partial_overlap
+                        best_partial_entity["partial_overlap_fraction"] = largest_partial_overlap_fraction
+
+            # FP by looking from predicted entities
+            for predicted_entity in pred_sent:
+                predicted_entity_type = predicted_entity["type_"]
+
+                if not predicted_entity.get("used_in_strict_metric", False):
+                    statistics[predicted_entity_type]["strict"]["fp"] += 1
+
+                if not predicted_entity.get("used_in_exact_metric", False):
+                    statistics[predicted_entity_type]["exact"]["fp"] += 1
+
+                if predicted_entity.get("used_in_partial_type_metric", False):
+                    len_predicted_entity = predicted_entity["end"] - predicted_entity["start"]
+                    statistics[predicted_entity_type]["partial_type"]["fp"] += \
+                        (len_predicted_entity - predicted_entity["partial_type_overlap_fraction"][0]) / \
+                        predicted_entity["partial_type_overlap_fraction"][1]
+                else:
+                    statistics[predicted_entity_type]["partial_type"]["fp"] += 1
+
+                if predicted_entity.get("used_in_partial_metric", False):
+                    len_predicted_entity = predicted_entity["end"] - predicted_entity["start"]
+                    statistics[predicted_entity_type]["partial"]["fp"] += \
+                        (len_predicted_entity - predicted_entity["partial_overlap_fraction"][0]) / \
+                        predicted_entity["partial_overlap_fraction"][1]
+                else:
+                    statistics[predicted_entity_type]["partial"]["fp"] += 1
 
         # Compute per entity Precision / Recall / F1 / Support
         for ent_type in statistics.keys():
-            if statistics[ent_type]["tp"]:
-                precision = 100 * statistics[ent_type]["tp"] / (statistics[ent_type]["fp"] + statistics[ent_type]["tp"])
-                recall = 100 * statistics[ent_type]["tp"] / (statistics[ent_type]["fn"] + statistics[ent_type]["tp"])
-            else:
-                precision, recall = 0., 0.
+            for statistic_type in statistics[ent_type].keys():  # strict, exact, type, partial
+                if statistic_type != "support":
+                    if statistics[ent_type][statistic_type]["tp"] != 0:
+                        precision = 100 * statistics[ent_type][statistic_type]["tp"] / \
+                                    (statistics[ent_type][statistic_type]["fp"] +
+                                     statistics[ent_type][statistic_type]["tp"])
+                        recall = 100 * statistics[ent_type][statistic_type]["tp"] / \
+                                 (statistics[ent_type][statistic_type]["fn"] + statistics[ent_type][statistic_type]["tp"])
+                    else:
+                        precision, recall = 0., 0.
 
-            if not precision + recall == 0:
-                f1 = 2 * precision * recall / (precision + recall)
-            else:
-                f1 = 0.
+                    if not precision + recall == 0:
+                        f1 = 2 * precision * recall / (precision + recall)
+                    else:
+                        f1 = 0.
 
-            support = statistics[ent_type]["support"]
-            clf_report[ent_type] = {'Precision': precision,
-                                    'Recall': recall,
-                                    'F1': f1,
-                                    'Support': support}
+                    support = statistics[ent_type]["support"]
+
+                    if ent_type not in clf_report:
+                        clf_report[ent_type] = {}
+                    clf_report[ent_type][statistic_type] = {
+                        "Precision": precision,
+                        "Recall": recall,
+                        "F1": f1,
+                        "Support": support
+                    }
+                    clf_report[ent_type]["Support"] = support
 
         # Sort clf report descending
-        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]['Support'], reverse=True))
+        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]["Support"], reverse=True))
 
-        # Compute micro F1 Scores
-        tp_all = sum([statistics[ent_type]["tp"] for ent_type in self.entity_types])
-        fp_all = sum([statistics[ent_type]["fp"] for ent_type in self.entity_types])
-        fn_all = sum([statistics[ent_type]["fn"] for ent_type in self.entity_types])
+        # Compute micro & macro F1 Scores
         support_all = sum([statistics[ent_type]["support"] for ent_type in self.entity_types])
+        clf_report["micro avg"] = {}
+        clf_report["macro avg"] = {}
+        for metric_type in ["strict", "exact", "partial_type", "partial"]:
+            # micro
+            tp = sum([statistics[ent_type][metric_type]["tp"] for ent_type in self.entity_types])
+            fp = sum([statistics[ent_type][metric_type]["fp"] for ent_type in self.entity_types])
+            fn = sum([statistics[ent_type][metric_type]["fn"] for ent_type in self.entity_types])
 
-        if tp_all:
-            micro_precision = 100 * tp_all / (tp_all + fp_all)
-            micro_recall = 100 * tp_all / (tp_all + fn_all)
-            micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
+            if tp:
+                micro_precision = 100 * tp / (tp + fp)
+                micro_recall = 100 * tp / (tp + fn)
+                micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
+            else:
+                micro_precision, micro_recall, micro_f1 = 0., 0., 0.
 
-        else:
-            micro_precision, micro_recall, micro_f1 = 0., 0., 0.
+            clf_report["micro avg"][metric_type] = {
+                "Precision": micro_precision,
+                "Recall": micro_recall,
+                "F1": micro_f1,
+                "Support": support_all
+            }
 
-        clf_report['micro avg'] = {'Precision': micro_precision,
-                                   'Recall': micro_recall,
-                                   'F1': micro_f1,
-                                   'Support': support_all}
+            # macro
+            macro_precision = np.mean([
+                clf_report[ent_type][metric_type]["Precision"]
+                for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0
+            ])
+            macro_recall = np.mean([
+                clf_report[ent_type][metric_type]["Recall"]
+                for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0
+            ])
+            macro_f1 = np.mean([
+                clf_report[ent_type][metric_type]["F1"]
+                for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0
+            ])
 
-        # Compute Macro F1 Scores
-        macro_precision = np.mean([clf_report[ent_type]["Precision"] for ent_type in self.entity_types
-                                   if clf_report[ent_type]["Support"] > 0])
-        macro_recall = np.mean([clf_report[ent_type]["Recall"] for ent_type in self.entity_types
-                                if clf_report[ent_type]["Support"] > 0])
-        macro_f1 = np.mean([clf_report[ent_type]["F1"] for ent_type in self.entity_types
-                            if clf_report[ent_type]["Support"] > 0])
-
-        clf_report['macro avg'] = {'Precision': macro_precision,
-                                   'Recall': macro_recall,
-                                   'F1': macro_f1,
-                                   'Support': support_all}
+            clf_report["macro avg"][metric_type] = {
+                "Precision": macro_precision,
+                "Recall": macro_recall,
+                "F1": macro_f1,
+                "Support": support_all
+            }
 
         if reset:
             self.reset()
 
-        return {'ner_clf_report': clf_report,
-                'ner_micro_f1': micro_f1,
-                'ner_macro_f1': macro_f1}
+        # todo: add ability to choose metric
+        return {
+            "ner_clf_report": clf_report,
+            "ner_micro_f1": clf_report["micro avg"]["strict"],
+            "ner_macro_f1": clf_report["macro avg"]["strict"]
+        }
 
     def reset(self):
         self.pred_entities = []
