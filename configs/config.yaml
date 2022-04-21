@@ -149,8 +149,9 @@ ModelTraining:
     lr_warmup: 0.1
 
   evaluator_params:
-    ner_f1: {}
-    re_f1:
+#    ner_f1: {}
+    ner_f1_adjusted: {}
+    re_f1_adjusted:
       mode: 'strict'
 
   trainer_params:

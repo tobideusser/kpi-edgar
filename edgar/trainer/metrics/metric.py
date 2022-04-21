@@ -5,8 +5,12 @@ from typing import Iterable, Dict, Any
 import torch
 
 
-METRICS = {'ner_f1': 'edgar.trainer.metrics.fscore.NERF1',
-           're_f1': 'edgar.trainer.metrics.fscore.REF1'}
+METRICS = {
+    "ner_f1": "edgar.trainer.metrics.fscore.NERF1",
+    "ner_f1_adjusted": "edgar.trainer.metrics.fscore_adjusted.NERF1Adjusted",
+    "re_f1": "edgar.trainer.metrics.fscore.REF1",
+    "re_f1_adjusted": "edgar.trainer.metrics.fscore_adjusted.REF1Adjusted"
+}
 
 
 class Metric(ABC):

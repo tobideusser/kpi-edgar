@@ -234,7 +234,7 @@ class F1(FBeta):
         return {"precision": precision, "recall": recall, "f1": f1}
 
 
-class NERF1(Metric):
+class NERF1Adjusted(Metric):
     def __init__(self):
         super().__init__()
 
@@ -415,8 +415,8 @@ class NERF1(Metric):
                 statistics[gt_ent_type]["partial_type"]["tp"] += largest_partial_type_overlap
                 statistics[gt_ent_type]["partial"]["tp"] += largest_partial_overlap
 
-                # calculate by how to increase to increase the false negative of partial_type and partial
-                # this will be the reverse the true positive score
+                # calculate by how much to increase the false negative of partial_type and partial
+                # this will be the reverse of the true positive score
                 statistics[gt_ent_type]["partial_type"]["fn"] += 1 - largest_partial_type_overlap
                 statistics[gt_ent_type]["partial"]["fn"] += 1 - largest_partial_overlap
 
@@ -568,7 +568,7 @@ class NERF1(Metric):
         self.gt_entities = []
 
 
-class REF1(Metric):
+class REF1Adjusted(Metric):
     def __init__(self, mode: str = 'strict'):
         super().__init__()
         assert mode in ["strict", "boundaries"]
@@ -613,10 +613,63 @@ class REF1(Metric):
 
             self.gt_relations.append(rel_sent)
 
+    @staticmethod
+    def calculate_relation_overlap(
+            gt_relation_head,
+            gt_relation_tail,
+            pred_relation_head,
+            pred_relation_tail
+    ):
+        # assume symmetric relation (for now?)
+        # todo: maybe add option for non symmetric relation?
+        gt_relation_head_span = set(range(min(gt_relation_head), max(gt_relation_head)))
+        pred_relation_head_span = set(range(min(pred_relation_head), max(pred_relation_head)))
+        gt_relation_tail_span = set(range(min(gt_relation_tail), max(gt_relation_tail)))
+        pred_relation_tail_span = set(range(min(pred_relation_tail), max(pred_relation_tail)))
+
+        overlap_between_gt_head_and_pred_head = gt_relation_head_span.intersection(pred_relation_head_span)
+        overlap_between_gt_head_and_pred_tail = gt_relation_head_span.intersection(pred_relation_tail_span)
+
+        if len(overlap_between_gt_head_and_pred_head) >= len(overlap_between_gt_head_and_pred_tail):
+            gt_head_tp = len(overlap_between_gt_head_and_pred_head) / len(gt_relation_head_span)
+            gt_head_fp = \
+                len(pred_relation_head_span - overlap_between_gt_head_and_pred_head) / len(pred_relation_head_span)
+        else:
+            gt_head_tp = len(overlap_between_gt_head_and_pred_tail) / len(gt_relation_head_span)
+            gt_head_fp = \
+                len(pred_relation_tail_span - overlap_between_gt_head_and_pred_tail) / len(pred_relation_tail_span)
+
+        overlap_between_gt_tail_and_pred_head = gt_relation_tail_span.intersection(pred_relation_head_span)
+        overlap_between_gt_tail_and_pred_tail = gt_relation_tail_span.intersection(pred_relation_tail_span)
+
+        if len(overlap_between_gt_tail_and_pred_tail) >= len(overlap_between_gt_tail_and_pred_head):
+            gt_tail_tp = len(overlap_between_gt_tail_and_pred_tail) / len(gt_relation_tail_span)
+            gt_tail_fp = \
+                len(pred_relation_tail_span - overlap_between_gt_tail_and_pred_tail) / len(pred_relation_tail_span)
+        else:
+            gt_tail_tp = len(overlap_between_gt_tail_and_pred_head) / len(gt_relation_tail_span)
+            gt_tail_fp = \
+                len(pred_relation_head_span - overlap_between_gt_tail_and_pred_head) / len(pred_relation_head_span)
+
+        return (gt_head_tp + gt_tail_tp) / 2, (gt_head_fp + gt_tail_fp) / 2
+
     def get_metric(self, reset: bool = False):
         assert len(self.pred_relations) == len(self.gt_relations)
 
         statistics = {rel: {"tp": 0, "fp": 0, "fn": 0} for rel in self.relation_types}
+        statistics = {
+            rel: {
+                "support": 0,
+                # Strict: exact boundary surface string match and entity type
+                "strict": {"tp": 0, "fp": 0, "fn": 0},
+                # Partial & Type: some overlap between the system tagged entity and the gold annotation
+                "partial_type": {"tp": 0, "fp": 0, "fn": 0},
+                # Exact: exact boundary match over the surface string, regardless of the type
+                "exact": {"tp": 0, "fp": 0, "fn": 0},
+                # Partial: partial boundary match over the surface string, regardless of the type
+                "partial": {"tp": 0, "fp": 0, "fn": 0}
+            } for rel in self.relation_types
+        }
         clf_report = {}
 
         # Count TP, FP and FN per type
@@ -624,14 +677,11 @@ class REF1(Metric):
             for rel_type in self.relation_types:
                 # strict mode takes argument types into account
                 if self.mode == "strict":
-                    pred_rels = {(rel["head"], rel["head_type"], rel["tail"], rel["tail_type"]) for rel in pred_sent if
-                                 rel["type_"] == rel_type
-                                 # and
-                                 # rel['head_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                                 # and
-                                 # rel['tail_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                                 }
-                    gt_rels = {(rel["head"], rel["head_type"], rel["tail"], rel["tail_type"]) for rel in gt_sent if
+                    predicted_relations = {
+                        (rel["head"], rel["head_type"], rel["tail"], rel["tail_type"])
+                        for rel in pred_sent if rel["type_"] == rel_type
+                    }
+                    ground_truth_relations = {(rel["head"], rel["head_type"], rel["tail"], rel["tail_type"]) for rel in gt_sent if
                                rel["type_"] == rel_type
                                # and
                                # rel['head_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
@@ -644,9 +694,132 @@ class REF1(Metric):
                     pred_rels = {(rel["head"], rel["tail"]) for rel in pred_sent if rel["type_"] == rel_type}
                     gt_rels = {(rel["head"], rel["tail"]) for rel in gt_sent if rel["type_"] == rel_type}
 
-                statistics[rel_type]["tp"] += len(pred_rels & gt_rels)
-                statistics[rel_type]["fp"] += len(pred_rels - gt_rels)
-                statistics[rel_type]["fn"] += len(gt_rels - pred_rels)
+                for ground_truth_relation in gt_sent:
+                    ground_truth_head = ground_truth_relation["head"]
+                    ground_truth_tail = ground_truth_relation["tail"]
+                    ground_truth_head_type = ground_truth_relation["head_type"]
+                    ground_truth_tail_type = ground_truth_relation["tail_type"]
+
+                    # measures how much of the entity was already predicted with the correct type
+                    largest_partial_type_tp_overlap = 0
+                    corresponding_partial_type_fp_overlap = 0
+                    # measures how much of the entity was already predicted regardless of type
+                    largest_partial_tp_overlap = 0
+                    corresponding_partial_fp_overlap = 0
+                    # largest_partial_overlap_fraction = [0, length_ground_truth_entity]
+
+                    best_strict_relation = None
+                    best_exact_relation = None
+                    best_partial_type_relation = None
+                    best_partial_relation = None
+
+                    for predicted_relation in pred_sent:
+
+                        tp_overlap, fp_overlap = self.calculate_relation_overlap(
+                            gt_relation_head=ground_truth_head,
+                            gt_relation_tail=ground_truth_tail,
+                            pred_relation_head=predicted_relation["head"],
+                            pred_relation_tail=predicted_relation["tail"]
+                        )
+
+                        if (
+                                (ground_truth_head_type == predicted_relation["head_type"]
+                                 and ground_truth_tail_type == predicted_relation["tail_type"])
+                                or
+                                (ground_truth_head_type == predicted_relation["tail_type"]
+                                 and ground_truth_tail_type == predicted_relation["head_type"])
+                        ):
+                            # type match
+
+                            if tp_overlap == 1 and fp_overlap == 0:
+                                # strict case
+
+                                # save this relation in the temporary best relation variables
+                                # in the strict case, they will be the best relation for all 4 types
+                                best_strict_relation = predicted_relation
+                                best_exact_relation = predicted_relation
+                                best_partial_type_relation = predicted_relation
+                                best_partial_relation = predicted_relation
+
+                                largest_partial_type_tp_overlap = 1
+                                corresponding_partial_type_fp_overlap = 0
+                                largest_partial_tp_overlap = 1
+                                corresponding_partial_fp_overlap = 0
+
+                                # can break, nothing will be superior
+                                break
+                            else:
+                                if tp_overlap > largest_partial_type_tp_overlap:
+                                    # partial_type case
+                                    largest_partial_type_tp_overlap = tp_overlap
+                                    corresponding_partial_type_fp_overlap = fp_overlap
+                                    best_partial_type_relation = predicted_relation
+                                if tp_overlap > largest_partial_tp_overlap:
+                                    # partial case
+                                    largest_partial_tp_overlap = tp_overlap
+                                    corresponding_partial_fp_overlap = fp_overlap
+                                    best_partial_relation = predicted_relation
+                        else:
+                            if tp_overlap == 1 and fp_overlap == 0:
+                                # exact case
+                                largest_partial_tp_overlap = 1
+                                corresponding_partial_fp_overlap = 0
+                                best_partial_relation = predicted_relation
+                                best_exact_relation = predicted_relation
+                            elif tp_overlap > largest_partial_tp_overlap:
+                                # partial case
+                                largest_partial_tp_overlap = tp_overlap
+                                corresponding_partial_fp_overlap = fp_overlap
+                                best_partial_relation = predicted_relation
+
+                    # increase the true positive scores of partial_type and partial by the largest overlap found
+                    statistics[rel_type]["partial_type"]["tp"] += largest_partial_type_tp_overlap
+                    statistics[rel_type]["partial"]["tp"] += largest_partial_tp_overlap
+
+                    # increase the false positive scores of partial_type and partial by the corresponding fp overlap of
+                    # the best true positive relation
+                    statistics[rel_type]["partial_type"]["fp"] += corresponding_partial_type_fp_overlap
+                    statistics[rel_type]["partial"]["fp"] += corresponding_partial_fp_overlap
+
+                    # calculate by how much to increase the false negative of partial_type and partial
+                    # this will be the reverse of the true positive score
+                    statistics[rel_type]["partial_type"]["fn"] += 1 - largest_partial_type_tp_overlap
+                    statistics[rel_type]["partial"]["fn"] += 1 - largest_partial_tp_overlap
+
+                    if best_strict_relation:
+                        statistics[rel_type]["strict"]["tp"] += 1
+                        best_strict_relation["used_in_strict_metric"] = True
+                    else:
+                        statistics[rel_type]["strict"]["fn"] += 1
+
+                    if best_exact_relation:
+                        statistics[rel_type]["exact"]["tp"] += 1
+                        best_strict_relation["used_in_exact_metric"] = True
+                    else:
+                        statistics[rel_type]["exact"]["fn"] += 1
+
+                    if best_partial_type_relation:
+                        best_partial_type_relation["used_in_partial_type_metric"] = True
+
+                    if best_partial_relation:
+                        best_partial_relation["used_in_partial_metric"] = True
+
+                # loop through all predicted relations again and count false positives by checking if the relation was
+                # used in the corresponding metric
+                for predicted_relation in pred_sent:
+                    if not predicted_relation.get("used_in_strict_metric", False):
+                        statistics[rel_type]["strict"]["fp"] += 1
+                    if not predicted_relation.get("used_in_partial_type_metric", False):
+                        statistics[rel_type]["partial_type"]["fp"] += 1
+                    if not predicted_relation.get("used_in_exact_metric", False):
+                        statistics[rel_type]["exact"]["fp"] += 1
+                    if not predicted_relation.get("used_in_partial_metric", False):
+                        statistics[rel_type]["partial"]["fp"] += 1
+
+
+                # statistics[rel_type]["tp"] += len(pred_rels & gt_rels)
+                # statistics[rel_type]["fp"] += len(pred_rels - gt_rels)
+                # statistics[rel_type]["fn"] += len(gt_rels - pred_rels)
 
         # Compute per entity Precision / Recall / F1
         for rel_type in statistics.keys():
