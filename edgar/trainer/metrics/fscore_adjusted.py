@@ -264,53 +264,9 @@ class NERF1Adjusted(Metric):
                                     for span, ent_type in s.items()]
                                    for s in entities_pred])
 
-    @staticmethod
-    def overlap_relative_span_size(
-            base_span: List,
-            span_to_compare: List,
-            relative_to_spans_to_compare: bool = False
-    ):
-        """
-        Calculates the relative overlap of the base span to a list of spans. The overlap is relative to the base span by
-        default and by setting relative_to_spans_to_compare to True it will be relative to span with the highest
-        overlap.
-        """
-        assert len(base_span) == 2
-
-        # create a set / range spanning from the start (base_span[0]) to the end (base_span[1]) of the span
-        base_range = set(range(base_span[0], base_span[1]))
-
-        # the length of the denominator by which the the maximum overlap will be divided. By default, i.e. if
-        # relative_to_spans_to_compare is set to False, this will be the length of the base span.
-        len_denominator = base_span[1] - base_span[0]
-
-        # variable to hold the maximum absolute overlap
-        max_overlap = 0
-
-        # loop through all spans that will be compared
-        for span_to_compare in span_to_compare:
-
-            # create a set / range spanning from the start to the end of the span that will be compared to the base span
-            stc = set(range(span_to_compare[0], span_to_compare[1]))
-
-            # calculate the actual absolute overlap of the base span and the compared span
-            len_overlap = len(stc.intersection(base_range))
-
-            # save the absolute overlap if it is largest measured so far
-            if len_overlap > max_overlap:
-                max_overlap = len_overlap
-
-                # calculate the length of the denominator if the option is set to use the compared span as base for it
-                if relative_to_spans_to_compare:
-                    len_denominator = max(span_to_compare) - min(span_to_compare)
-
-        # return the relative overlap
-        return max_overlap / len_denominator, max_overlap, len_denominator
-
     def get_metric(self, reset: bool = False):
         assert len(self.pred_entities) == len(self.gt_entities)
 
-        # statistics = {ent: {"tp": 0, "fp": 0, "fn": 0, "support": 0} for ent in self.entity_types}
         statistics = {
             ent: {
                 "support": 0,
@@ -344,11 +300,11 @@ class NERF1Adjusted(Metric):
                 length_ground_truth_entity = ground_truth_entity["end"] - ground_truth_entity["start"]
 
                 # measures how much of the entity was already predicted with the correct type
-                largest_partial_type_overlap = 0
-                largest_partial_type_overlap_fraction = [0, length_ground_truth_entity]
+                largest_partial_type_tp_overlap = 0
+                corresponding_partial_type_fp_overlap = 0
                 # measures how much of the entity was already predicted regardless of type
-                largest_partial_overlap = 0
-                largest_partial_overlap_fraction = [0, length_ground_truth_entity]
+                largest_partial_tp_overlap = 0
+                corresponding_partial_fp_overlap = 0
 
                 statistics[gt_ent_type]["support"] += 1
 
@@ -358,13 +314,10 @@ class NERF1Adjusted(Metric):
                 best_partial_entity = None
 
                 for predicted_entity in pred_sent:
-                    # predicted_entity_span = [predicted_entity["start"], predicted_entity["end"]]
                     predicted_entity_span = set(range(predicted_entity["start"], predicted_entity["end"]))
-                    absolute_overlap = len(predicted_entity_span.intersection(ground_truth_entity_span))
-                    relative_overlap = absolute_overlap / length_ground_truth_entity
-                    # relative_overlap = self.overlap_relative_span_size(
-                    #     base_span=gt_ent_span, span_to_compare=[predicted_entity_span]
-                    # )
+                    raw_overlap = predicted_entity_span.intersection(ground_truth_entity_span)
+                    fp_overlap = len(predicted_entity_span - raw_overlap) / len(predicted_entity_span)
+                    tp_overlap = len(raw_overlap) / length_ground_truth_entity
 
                     # 5 possible cases (as seen in variable statistics definition):
                     #   case 1: exact boundary surface string match and entity type
@@ -373,83 +326,76 @@ class NERF1Adjusted(Metric):
                     #   case 4: partial boundary match over the surface string, regardless of the type
                     #   case 5: no match at all
                     if predicted_entity["type_"] == gt_ent_type:
-                        if relative_overlap == 1:
+                        if tp_overlap == 1 and fp_overlap == 0:
                             # case 1
                             statistics[gt_ent_type]["strict"]["tp"] += 1
                             statistics[gt_ent_type]["exact"]["tp"] += 1
-                            largest_partial_type_overlap = 1
-                            largest_partial_type_overlap_fraction[0] = absolute_overlap
-                            largest_partial_overlap = 1
-                            largest_partial_overlap_fraction[0] = absolute_overlap
-                            # predicted_entity["strict"] = True
-                            # ground_truth_entity["strict"] = 1
+                            largest_partial_type_tp_overlap = 1
+                            corresponding_partial_type_fp_overlap = 0
+                            largest_partial_tp_overlap = 1
+                            corresponding_partial_fp_overlap = 0
                             best_strict_entity = predicted_entity
-                            break  # can break loop, since all other predicted entities will be inferior
-                        else:
-                            if relative_overlap > largest_partial_type_overlap:
-                                # case 2
-                                largest_partial_type_overlap = relative_overlap
-                                largest_partial_type_overlap_fraction[0] = absolute_overlap
-                                best_partial_type_entity = predicted_entity
-                            if relative_overlap > largest_partial_overlap:
-                                # case 4
-                                largest_partial_overlap = relative_overlap
-                                largest_partial_overlap_fraction[0] = absolute_overlap
-                                best_partial_entity = predicted_entity
-                    else:
-                        if relative_overlap == 1:
-                            # case 3
-                            statistics[gt_ent_type]["exact"]["tp"] += 1
-                            largest_partial_overlap = 1
-                            largest_partial_overlap_fraction[0] = absolute_overlap
-                            # predicted_entity["exact"] = True
+                            best_partial_type_entity = predicted_entity
                             best_exact_entity = predicted_entity
                             best_partial_entity = predicted_entity
-                        elif relative_overlap > largest_partial_overlap:
+                            break  # can break loop, since all other predicted entities will be inferior
+                        else:
+                            if tp_overlap > largest_partial_type_tp_overlap:
+                                # case 2
+                                largest_partial_type_tp_overlap = tp_overlap
+                                corresponding_partial_type_fp_overlap = fp_overlap
+                                best_partial_type_entity = predicted_entity
+                            if tp_overlap > largest_partial_tp_overlap:
+                                # case 4
+                                largest_partial_tp_overlap = tp_overlap
+                                corresponding_partial_fp_overlap = fp_overlap
+                                best_partial_entity = predicted_entity
+                    else:
+                        if tp_overlap == 1 and fp_overlap == 0:
+                            # case 3
+                            largest_partial_tp_overlap = 1
+                            corresponding_partial_fp_overlap = 0
+                            best_exact_entity = predicted_entity
+                            best_partial_entity = predicted_entity
+                        elif tp_overlap > largest_partial_tp_overlap:
                             # case 4
-                            largest_partial_overlap = relative_overlap
-                            largest_partial_overlap_fraction[0] = absolute_overlap
+                            largest_partial_tp_overlap = tp_overlap
+                            corresponding_partial_fp_overlap = fp_overlap
                             best_partial_entity = predicted_entity
 
                 # increase the true positive scores of partial_type and partial by the largest overlap found
-                statistics[gt_ent_type]["partial_type"]["tp"] += largest_partial_type_overlap
-                statistics[gt_ent_type]["partial"]["tp"] += largest_partial_overlap
+                statistics[gt_ent_type]["partial_type"]["tp"] += largest_partial_type_tp_overlap
+                statistics[gt_ent_type]["partial"]["tp"] += largest_partial_tp_overlap
+
+                # increase the false positive scores of partial_type and partial by the corresponding fp overlap of
+                # the best true positive relation
+                statistics[gt_ent_type]["partial_type"]["fp"] += corresponding_partial_type_fp_overlap
+                statistics[gt_ent_type]["partial"]["fp"] += corresponding_partial_fp_overlap
 
                 # calculate by how much to increase the false negative of partial_type and partial
                 # this will be the reverse of the true positive score
-                statistics[gt_ent_type]["partial_type"]["fn"] += 1 - largest_partial_type_overlap
-                statistics[gt_ent_type]["partial"]["fn"] += 1 - largest_partial_overlap
+                statistics[gt_ent_type]["partial_type"]["fn"] += 1 - largest_partial_type_tp_overlap
+                statistics[gt_ent_type]["partial"]["fn"] += 1 - largest_partial_tp_overlap
 
                 if best_strict_entity:
+                    statistics[gt_ent_type]["strict"]["tp"] += 1
                     best_strict_entity["used_in_strict_metric"] = True
-                    best_strict_entity["used_in_partial_type_metric"] = True
-                    best_strict_entity["used_in_exact_metric"] = True
-                    best_strict_entity["used_in_partial_metric"] = True
-                    best_strict_entity["partial_type_overlap"] = 1
-                    best_strict_entity["partial_overlap"] = 1
-                    best_strict_entity["partial_type_overlap_fraction"] = largest_partial_type_overlap_fraction
-                    best_strict_entity["partial_overlap_fraction"] = largest_partial_overlap_fraction
                 else:
-                    # no strict match was found, increase false negative counter by 1
                     statistics[gt_ent_type]["strict"]["fn"] += 1
 
-                    if best_exact_entity:
-                        best_exact_entity["used_in_exact_metric"] = True
-                    else:
-                        # no exact match was found, increase false negative counter by 1
-                        statistics[gt_ent_type]["exact"]["fn"] += 1
+                if best_exact_entity:
+                    statistics[gt_ent_type]["exact"]["tp"] += 1
+                    best_exact_entity["used_in_exact_metric"] = True
+                else:
+                    statistics[gt_ent_type]["exact"]["fn"] += 1
 
-                    if best_partial_type_entity:
-                        best_partial_type_entity["used_in_partial_type_metric"] = True
-                        best_partial_type_entity["partial_type_overlap"] = largest_partial_type_overlap
-                        best_partial_type_entity["partial_type_overlap_fraction"] = \
-                            largest_partial_type_overlap_fraction
-                    if best_partial_entity:
-                        best_partial_entity["used_in_partial_metric"] = True
-                        best_partial_entity["partial_overlap"] = largest_partial_overlap
-                        best_partial_entity["partial_overlap_fraction"] = largest_partial_overlap_fraction
+                if best_partial_type_entity:
+                    best_partial_type_entity["used_in_partial_type_metric"] = True
 
-            # FP by looking from predicted entities
+                if best_partial_entity:
+                    best_partial_entity["used_in_partial_metric"] = True
+
+            # Remaining FP by looking from predicted entities
             for predicted_entity in pred_sent:
                 predicted_entity_type = predicted_entity["type_"]
 
@@ -459,20 +405,10 @@ class NERF1Adjusted(Metric):
                 if not predicted_entity.get("used_in_exact_metric", False):
                     statistics[predicted_entity_type]["exact"]["fp"] += 1
 
-                if predicted_entity.get("used_in_partial_type_metric", False):
-                    len_predicted_entity = predicted_entity["end"] - predicted_entity["start"]
-                    statistics[predicted_entity_type]["partial_type"]["fp"] += \
-                        (len_predicted_entity - predicted_entity["partial_type_overlap_fraction"][0]) / \
-                        predicted_entity["partial_type_overlap_fraction"][1]
-                else:
+                if not predicted_entity.get("used_in_partial_type_metric", False):
                     statistics[predicted_entity_type]["partial_type"]["fp"] += 1
 
-                if predicted_entity.get("used_in_partial_metric", False):
-                    len_predicted_entity = predicted_entity["end"] - predicted_entity["start"]
-                    statistics[predicted_entity_type]["partial"]["fp"] += \
-                        (len_predicted_entity - predicted_entity["partial_overlap_fraction"][0]) / \
-                        predicted_entity["partial_overlap_fraction"][1]
-                else:
+                if not predicted_entity.get("used_in_partial_metric", False):
                     statistics[predicted_entity_type]["partial"]["fp"] += 1
 
         # Compute per entity Precision / Recall / F1 / Support
@@ -656,7 +592,6 @@ class REF1Adjusted(Metric):
     def get_metric(self, reset: bool = False):
         assert len(self.pred_relations) == len(self.gt_relations)
 
-        statistics = {rel: {"tp": 0, "fp": 0, "fn": 0} for rel in self.relation_types}
         statistics = {
             rel: {
                 "support": 0,
@@ -794,7 +729,7 @@ class REF1Adjusted(Metric):
 
                     if best_exact_relation:
                         statistics[rel_type]["exact"]["tp"] += 1
-                        best_strict_relation["used_in_exact_metric"] = True
+                        best_exact_relation["used_in_exact_metric"] = True
                     else:
                         statistics[rel_type]["exact"]["fn"] += 1
 
