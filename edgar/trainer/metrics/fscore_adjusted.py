@@ -610,30 +610,14 @@ class REF1Adjusted(Metric):
         # Count TP, FP and FN per type
         for pred_sent, gt_sent in zip(self.pred_relations, self.gt_relations):
             for rel_type in self.relation_types:
-                # strict mode takes argument types into account
-                if self.mode == "strict":
-                    predicted_relations = {
-                        (rel["head"], rel["head_type"], rel["tail"], rel["tail_type"])
-                        for rel in pred_sent if rel["type_"] == rel_type
-                    }
-                    ground_truth_relations = {(rel["head"], rel["head_type"], rel["tail"], rel["tail_type"]) for rel in gt_sent if
-                               rel["type_"] == rel_type
-                               # and
-                               # rel['head_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                               # and
-                               # rel['tail_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                               }
-
-                # boundaries mode only takes argument spans into account
-                elif self.mode == "boundaries":
-                    pred_rels = {(rel["head"], rel["tail"]) for rel in pred_sent if rel["type_"] == rel_type}
-                    gt_rels = {(rel["head"], rel["tail"]) for rel in gt_sent if rel["type_"] == rel_type}
 
                 for ground_truth_relation in gt_sent:
                     ground_truth_head = ground_truth_relation["head"]
                     ground_truth_tail = ground_truth_relation["tail"]
                     ground_truth_head_type = ground_truth_relation["head_type"]
                     ground_truth_tail_type = ground_truth_relation["tail_type"]
+
+                    statistics[rel_type]["support"] += 1
 
                     # measures how much of the entity was already predicted with the correct type
                     largest_partial_type_tp_overlap = 0
@@ -756,62 +740,93 @@ class REF1Adjusted(Metric):
                 # statistics[rel_type]["fp"] += len(pred_rels - gt_rels)
                 # statistics[rel_type]["fn"] += len(gt_rels - pred_rels)
 
-        # Compute per entity Precision / Recall / F1
+        # Compute per relation Precision / Recall / F1 / Support
         for rel_type in statistics.keys():
-            if statistics[rel_type]["tp"]:
-                precision = 100 * statistics[rel_type]["tp"] / (statistics[rel_type]["fp"] + statistics[rel_type]["tp"])
-                recall = 100 * statistics[rel_type]["tp"] / (statistics[rel_type]["fn"] + statistics[rel_type]["tp"])
-            else:
-                precision, recall = 0., 0.
+            for statistic_type in statistics[rel_type].keys():  # strict, exact, type, partial
+                if statistic_type != "support":
+                    if statistics[rel_type][statistic_type]["tp"] != 0:
+                        precision = 100 * statistics[rel_type][statistic_type]["tp"] / \
+                                    (statistics[rel_type][statistic_type]["fp"] +
+                                     statistics[rel_type][statistic_type]["tp"])
+                        recall = 100 * statistics[rel_type][statistic_type]["tp"] / \
+                                 (statistics[rel_type][statistic_type]["fn"] +
+                                  statistics[rel_type][statistic_type]["tp"])
+                    else:
+                        precision, recall = 0., 0.
 
-            if not precision + recall == 0:
-                f1 = 2 * precision * recall / (precision + recall)
-            else:
-                f1 = 0.
-            support = statistics[rel_type]["tp"] + statistics[rel_type]["fn"]
-            clf_report[rel_type] = {'Precision': precision,
-                                    'Recall': recall,
-                                    'F1': f1,
-                                    'Support': support}
+                    if not precision + recall == 0:
+                        f1 = 2 * precision * recall / (precision + recall)
+                    else:
+                        f1 = 0.
+
+                    support = statistics[rel_type]["support"]
+
+                    if rel_type not in clf_report:
+                        clf_report[rel_type] = {}
+                    clf_report[rel_type][statistic_type] = {
+                        "Precision": precision,
+                        "Recall": recall,
+                        "F1": f1,
+                        "Support": support
+                    }
+                    clf_report[rel_type]["Support"] = support
 
         # Sort clf report descending
-        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]['Support'], reverse=True))
+        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]["Support"], reverse=True))
 
-        # Compute micro F1 Scores
-        all_tp = sum([statistics[rel_type]["tp"] for rel_type in self.relation_types])
-        all_fp = sum([statistics[rel_type]["fp"] for rel_type in self.relation_types])
-        all_fn = sum([statistics[rel_type]["fn"] for rel_type in self.relation_types])
+        # Compute micro & macro F1 Scores
+        support_all = sum([statistics[rel_type]["support"] for rel_type in self.relation_types])
+        clf_report["micro avg"] = {}
+        clf_report["macro avg"] = {}
+        for metric_type in ["strict", "exact", "partial_type", "partial"]:
+            # micro
+            tp = sum([statistics[rel_type][metric_type]["tp"] for rel_type in self.relation_types])
+            fp = sum([statistics[rel_type][metric_type]["fp"] for rel_type in self.relation_types])
+            fn = sum([statistics[rel_type][metric_type]["fn"] for rel_type in self.relation_types])
 
-        if all_tp:
-            micro_precision = 100 * all_tp / (all_tp + all_fp)
-            micro_recall = 100 * all_tp / (all_tp + all_fn)
-            micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
+            if tp:
+                micro_precision = 100 * tp / (tp + fp)
+                micro_recall = 100 * tp / (tp + fn)
+                micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
+            else:
+                micro_precision, micro_recall, micro_f1 = 0., 0., 0.
 
-        else:
-            micro_precision, micro_recall, micro_f1 = 0., 0., 0.
-        support_all = all_tp + all_fn
+            clf_report["micro avg"][metric_type] = {
+                "Precision": micro_precision,
+                "Recall": micro_recall,
+                "F1": micro_f1,
+                "Support": support_all
+            }
 
-        clf_report['micro avg'] = {'Precision': micro_precision,
-                                   'Recall': micro_recall,
-                                   'F1': micro_f1,
-                                   'Support': support_all}
+            # macro
+            macro_precision = np.mean([
+                clf_report[rel_type][metric_type]["Precision"]
+                for rel_type in self.relation_types if clf_report[rel_type]["Support"] > 0
+            ])
+            macro_recall = np.mean([
+                clf_report[rel_type][metric_type]["Recall"]
+                for rel_type in self.relation_types if clf_report[rel_type]["Support"] > 0
+            ])
+            macro_f1 = np.mean([
+                clf_report[rel_type][metric_type]["F1"]
+                for rel_type in self.relation_types if clf_report[rel_type]["Support"] > 0
+            ])
 
-        # Compute Macro F1 Scores
-        macro_precision = np.mean([clf_report[rel_type]["Precision"] for rel_type in self.relation_types])
-        macro_recall = np.mean([clf_report[rel_type]["Recall"] for rel_type in self.relation_types])
-        macro_f1 = np.mean([clf_report[rel_type]["F1"] for rel_type in self.relation_types])
-
-        clf_report['macro avg'] = {'Precision': macro_precision,
-                                   'Recall': macro_recall,
-                                   'F1': macro_f1,
-                                   'Support': support_all}
+            clf_report["macro avg"][metric_type] = {
+                "Precision": macro_precision,
+                "Recall": macro_recall,
+                "F1": macro_f1,
+                "Support": support_all
+            }
 
         if reset:
             self.reset()
 
-        return {'re_clf_report': clf_report,
-                're_micro_f1': micro_f1,
-                're_macro_f1': macro_f1}
+        return {
+            "re_clf_report": clf_report,
+            "re_micro_f1": micro_f1,
+            "re_macro_f1": macro_f1
+        }
 
     def reset(self):
         self.pred_relations = []
