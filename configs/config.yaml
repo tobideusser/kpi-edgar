@@ -6,7 +6,7 @@ base_dir: "/scratch/data/edgar/v2/"
 ################
 
 DataParsing:
-  path_to_data_folders: "/cluster/edgar_filings_above$200B"
+  path_to_data_folders: "/cluster/home/edgar_filings_above$200B"
   entity_prefixes: ["us-gaap"]
   entity_formats: ["ixt:numdotdecimal", "ix:nonFraction"]
   dataset_name: "EDGAR"
@@ -81,7 +81,7 @@ ModelTraining:
 
   model_params:
     # choices: "untrained", "pretrained_decoder", "pretrained_full"
-    type_: "pretrained_decoder"
+    type_: "untrained" #"pretrained_decoder"
     path_pretrained_model: "/scratch/data/edgar/banz_pretraining/ModelTraining/000" #/models/best_model.pt"
 
     encoder_params:
