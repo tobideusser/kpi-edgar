@@ -235,8 +235,10 @@ class F1(FBeta):
 
 
 class NERF1Adjusted(Metric):
-    def __init__(self):
+    def __init__(self, mode: str = "strict"):
         super().__init__()
+        assert mode in ["strict", "partial_type", "exact", "partial"]
+        self.mode = mode
 
         self.pred_entities: List[List[Dict]] = []
         self.gt_entities: List[List[Dict]] = []
@@ -448,6 +450,9 @@ class NERF1Adjusted(Metric):
         support_all = sum([statistics[ent_type]["support"] for ent_type in self.entity_types])
         clf_report["micro avg"] = {}
         clf_report["macro avg"] = {}
+        micro_f1_to_be_returned = 0
+        macro_f1_to_be_returned = 0
+        relevant_clf_report = {}
         for metric_type in ["strict", "exact", "partial_type", "partial"]:
             # micro
             tp = sum([statistics[ent_type][metric_type]["tp"] for ent_type in self.entity_types])
@@ -488,6 +493,23 @@ class NERF1Adjusted(Metric):
                 "F1": macro_f1,
                 "Support": support_all
             }
+            if metric_type == self.mode:
+                micro_f1_to_be_returned = micro_f1
+                macro_f1_to_be_returned = macro_f1
+                relevant_clf_report = {
+                    "micro avg": {
+                        "Precision": micro_precision,
+                        "Recall": micro_recall,
+                        "F1": micro_f1,
+                        "Support": support_all
+                    },
+                    "macro avg": {
+                        "Precision": macro_precision,
+                        "Recall": macro_recall,
+                        "F1": macro_f1,
+                        "Support": support_all
+                    }
+                }
 
         if reset:
             self.reset()
@@ -495,8 +517,9 @@ class NERF1Adjusted(Metric):
         # todo: add ability to choose metric
         return {
             "ner_clf_report": clf_report,
-            "ner_micro_f1": clf_report["micro avg"]["strict"],
-            "ner_macro_f1": clf_report["macro avg"]["strict"]
+            "relevant_ner_clf_report": relevant_clf_report,
+            "ner_micro_f1": micro_f1_to_be_returned,
+            "ner_macro_f1": macro_f1_to_be_returned
         }
 
     def reset(self):

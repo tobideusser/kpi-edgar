@@ -150,7 +150,8 @@ ModelTraining:
 
   evaluator_params:
 #    ner_f1: {}
-    ner_f1_adjusted: {}
+    ner_f1_adjusted:
+      mode: "partial_type"
     re_f1_adjusted:
       mode: 'partial_type'
 
