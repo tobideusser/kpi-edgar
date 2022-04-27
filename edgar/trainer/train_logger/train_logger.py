@@ -208,21 +208,22 @@ class TrainLogger(ABC):
             metric_types = ["strict", "partial_type", "exact", "partial"]
             report = ""
             for metric_type in metric_types:
-                headers = ('Type', 'Precision', 'Recall', 'F1', 'Support')
-                digits = 2
-                max_name_width = max(len(name) for name in clf_report.keys())
-                head_fmt = '    {:>{max_name_width}s} ' + ' {:>9}' * (len(headers) - 1)
-                report += f"    \n {metric_type} \n"
-                report += head_fmt.format(*headers, max_name_width=max_name_width)
-                report += '    \n\n'
-                row_fmt = '    {:>{max_name_width}s} ' + ' {:>9.{digits}f}' * 3 + ' {:>9}\n'
-                for name, metric_dict in clf_report.items():
-                    if name == 'micro avg':
-                        report += '    \n'
-                    metrics = metric_dict[metric_type]
-                    row = (name,) + tuple(metrics.values())
-                    report += row_fmt.format(*row, max_name_width=max_name_width, digits=digits)
-                report += "\n"
+                if metric_type != "best_validation_relevant_re_clf_report":
+                    headers = ('Type', 'Precision', 'Recall', 'F1', 'Support')
+                    digits = 2
+                    max_name_width = max(len(name) for name in clf_report.keys())
+                    head_fmt = '    {:>{max_name_width}s} ' + ' {:>9}' * (len(headers) - 1)
+                    report += f"    \n {metric_type} \n"
+                    report += head_fmt.format(*headers, max_name_width=max_name_width)
+                    report += '    \n\n'
+                    row_fmt = '    {:>{max_name_width}s} ' + ' {:>9.{digits}f}' * 3 + ' {:>9}\n'
+                    for name, metric_dict in clf_report.items():
+                        if name == 'micro avg':
+                            report += '    \n'
+                        metrics = metric_dict[metric_type]
+                        row = (name,) + tuple(metrics.values())
+                        report += row_fmt.format(*row, max_name_width=max_name_width, digits=digits)
+                    report += "\n"
         else:
             headers = ('Type', 'Precision', 'Recall', 'F1', 'Support')
             digits = 2

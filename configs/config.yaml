@@ -152,7 +152,7 @@ ModelTraining:
 #    ner_f1: {}
     ner_f1_adjusted: {}
     re_f1_adjusted:
-      mode: 'strict'
+      mode: 'partial_type'
 
   trainer_params:
     num_epochs: 1000

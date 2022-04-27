@@ -507,7 +507,7 @@ class NERF1Adjusted(Metric):
 class REF1Adjusted(Metric):
     def __init__(self, mode: str = 'strict'):
         super().__init__()
-        assert mode in ["strict", "boundaries"]
+        assert mode in ["strict", "partial_type", "exact", "partial"]
         self.mode = mode
 
         self.pred_relations: List[List[Dict]] = []
@@ -778,6 +778,9 @@ class REF1Adjusted(Metric):
         support_all = sum([statistics[rel_type]["support"] for rel_type in self.relation_types])
         clf_report["micro avg"] = {}
         clf_report["macro avg"] = {}
+        micro_f1_to_be_returned = 0
+        macro_f1_to_be_returned = 0
+        relevant_clf_report = {}
         for metric_type in ["strict", "exact", "partial_type", "partial"]:
             # micro
             tp = sum([statistics[rel_type][metric_type]["tp"] for rel_type in self.relation_types])
@@ -818,14 +821,32 @@ class REF1Adjusted(Metric):
                 "F1": macro_f1,
                 "Support": support_all
             }
+            if metric_type == self.mode:
+                micro_f1_to_be_returned = micro_f1
+                macro_f1_to_be_returned = macro_f1
+                relevant_clf_report = {
+                    "micro avg": {
+                        "Precision": micro_precision,
+                        "Recall": micro_recall,
+                        "F1": micro_f1,
+                        "Support": support_all
+                    },
+                    "macro avg": {
+                        "Precision": macro_precision,
+                        "Recall": macro_recall,
+                        "F1": macro_f1,
+                        "Support": support_all
+                    }
+                }
 
         if reset:
             self.reset()
 
         return {
             "re_clf_report": clf_report,
-            "re_micro_f1": micro_f1,
-            "re_macro_f1": macro_f1
+            "relevant_re_clf_report": relevant_clf_report,
+            "re_micro_f1": micro_f1_to_be_returned,
+            "re_macro_f1": macro_f1_to_be_returned
         }
 
     def reset(self):
