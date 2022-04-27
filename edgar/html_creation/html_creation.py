@@ -12,7 +12,7 @@ from edgar.data_classes import Corpus, Sentence, Relation, Entity
 
 
 def _store_examples(examples: List[Dict], file_path: str, template: str):
-    template_path = os.path.join(package_path, 'kpi_relation_extraction', 'html_creation',
+    template_path = os.path.join(package_path, 'html_creation',
                                  'html_result_templates', template)
 
     # read template
