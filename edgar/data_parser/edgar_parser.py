@@ -97,88 +97,89 @@ class EdgarParser:
 
         # loop through each file.
         for file in files_list:
+            try:
+                # Parse the tree by passing through the file.
+                tree = ElementTree.ElementTree(ElementTree.fromstring(file.raw_string))
+                # tree = ElementTree.parse(file.file_path)
 
-            # Parse the tree by passing through the file.
-            tree = ElementTree.ElementTree(ElementTree.fromstring(file.raw_string))
-            # tree = ElementTree.parse(file.file_path)
+                # Grab all the namespace elements we want.
+                elements = tree.findall(file.namespace_root)
 
-            # Grab all the namespace elements we want.
-            elements = tree.findall(file.namespace_root)
+                # Loop throught each element that was found.
+                for element in elements:
 
-            # Loop throught each element that was found.
-            for element in elements:
+                    # if the element has children we need to loop through those.
+                    for child_element in element.iter():
 
-                # if the element has children we need to loop through those.
-                for child_element in element.iter():
+                        # split the label to remove the namespace component, this will return a list.
+                        element_split_label = child_element.tag.split('}')
 
-                    # split the label to remove the namespace component, this will return a list.
-                    element_split_label = child_element.tag.split('}')
+                        # The first element is the namespace, and the second element is a label.
+                        # namespace = element_split_label[0]
+                        label = element_split_label[1]
 
-                    # The first element is the namespace, and the second element is a label.
-                    # namespace = element_split_label[0]
-                    label = element_split_label[1]
+                        # if it's a label we want then continue.
+                        if label in parse:
 
-                    # if it's a label we want then continue.
-                    if label in parse:
+                            # define the item type label
+                            element_type_label = file.namespace_label + '_' + label
 
-                        # define the item type label
-                        element_type_label = file.namespace_label + '_' + label
+                            # initalize a smaller dictionary that will house all the content from that element.
+                            dict_storage = {"item_type": element_type_label}
 
-                        # initalize a smaller dictionary that will house all the content from that element.
-                        dict_storage = {"item_type": element_type_label}
+                            # grab the attribute keys
+                            cal_keys = child_element.keys()
 
-                        # grab the attribute keys
-                        cal_keys = child_element.keys()
+                            # for each key.
+                            for key in cal_keys:
 
-                        # for each key.
-                        for key in cal_keys:
+                                # parse if needed.
+                                if "}" in key:
 
-                            # parse if needed.
-                            if "}" in key:
+                                    # add the new key to the dictionary and grab the old value.
+                                    new_key = key.split("}")[1]
+                                    dict_storage[new_key] = child_element.attrib[key]
 
-                                # add the new key to the dictionary and grab the old value.
-                                new_key = key.split("}")[1]
-                                dict_storage[new_key] = child_element.attrib[key]
+                                else:
+                                    # grab the value.
+                                    dict_storage[key] = child_element.attrib[key]
 
-                            else:
-                                # grab the value.
-                                dict_storage[key] = child_element.attrib[key]
+                            # At this stage I need to create my master list of IDs which is very important to program. I
+                            # only want unique values.
+                            # I'm still experimenting with this one but I find `Label` XML file provides the best results.
+                            if element_type_label == "label_label":
+                                # Grab the Old Label ID for example,
+                                # `lab_us-gaap_AllocatedShareBasedCompensationExpense_E5D37E400FB5193199CFCB477063C5EB`
+                                key_store = dict_storage["label"]
 
-                        # At this stage I need to create my master list of IDs which is very important to program. I
-                        # only want unique values.
-                        # I'm still experimenting with this one but I find `Label` XML file provides the best results.
-                        if element_type_label == "label_label":
-                            # Grab the Old Label ID for example,
-                            # `lab_us-gaap_AllocatedShareBasedCompensationExpense_E5D37E400FB5193199CFCB477063C5EB`
-                            key_store = dict_storage["label"]
+                                # Create the Master Key, now it's this:
+                                # `us-gaap_AllocatedShareBasedCompensationExpense_E5D37E400FB5193199CFCB477063C5EB`
+                                master_key = key_store.replace("lab_", "")
 
-                            # Create the Master Key, now it's this:
-                            # `us-gaap_AllocatedShareBasedCompensationExpense_E5D37E400FB5193199CFCB477063C5EB`
-                            master_key = key_store.replace("lab_", "")
+                                # Split the Key, now it's this:
+                                # ['us-gaap', 'AllocatedShareBasedCompensationExpense', 'E5D37E400FB5193199CFCB477063C5EB']
+                                label_split = master_key.split("_")
 
-                            # Split the Key, now it's this:
-                            # ['us-gaap', 'AllocatedShareBasedCompensationExpense', 'E5D37E400FB5193199CFCB477063C5EB']
-                            label_split = master_key.split("_")
+                                # Create the GAAP ID, now it's this: 'us-gaap:AllocatedShareBasedCompensationExpense'
+                                gaap_id = label_split[0] + ":" + label_split[1]
 
-                            # Create the GAAP ID, now it's this: 'us-gaap:AllocatedShareBasedCompensationExpense'
-                            gaap_id = label_split[0] + ":" + label_split[1]
+                                # One Dictionary contains only the values from the XML Files.
+                                storage_values[master_key] = {}
+                                storage_values[master_key]["label_id"] = key_store
+                                storage_values[master_key]["location_id"] = key_store.replace("lab_", "loc_")
+                                storage_values[master_key]["us_gaap_id"] = gaap_id
+                                storage_values[master_key]["us_gaap_value"] = None
+                                storage_values[master_key][element_type_label] = dict_storage
 
-                            # One Dictionary contains only the values from the XML Files.
-                            storage_values[master_key] = {}
-                            storage_values[master_key]["label_id"] = key_store
-                            storage_values[master_key]["location_id"] = key_store.replace("lab_", "loc_")
-                            storage_values[master_key]["us_gaap_id"] = gaap_id
-                            storage_values[master_key]["us_gaap_value"] = None
-                            storage_values[master_key][element_type_label] = dict_storage
+                                # The other dicitonary will only contain the values related to GAAP Metrics.
+                                storage_gaap[gaap_id] = {}
+                                storage_gaap[gaap_id]["id"] = gaap_id
+                                storage_gaap[gaap_id]["master_id"] = master_key
 
-                            # The other dicitonary will only contain the values related to GAAP Metrics.
-                            storage_gaap[gaap_id] = {}
-                            storage_gaap[gaap_id]["id"] = gaap_id
-                            storage_gaap[gaap_id]["master_id"] = master_key
-
-                        # add to dictionary.
-                        storage_list.append([file.namespace_label, dict_storage])
-
+                            # add to dictionary.
+                            storage_list.append([file.namespace_label, dict_storage])
+            except IndexError:
+                logger.info("Error parsing file, skipping.")
         # single xml file
 
         doc = {"text": [], "table": []}
@@ -262,12 +263,18 @@ class EdgarParser:
                         context_ref=text_part["entity"].get("contextRef", None),
                         continued_at=text_part["entity"].get("continuedAt", None),
                         escape=bool(text_part["entity"].get("continuedAt", None)),
-                        gaap_id=text_part["entity"]["gaap"].get("id", None),
-                        gaap_master_id=text_part["entity"]["gaap"].get("master_id", None),
-                        label_id=text_part["entity"]["value"].get("label_id", None),
-                        location_id=text_part["entity"]["value"].get("location_id", None),
-                        us_gaap_id=text_part["entity"]["value"].get("us_gaap_id", None),
+                        gaap_id=text_part["entity"]["gaap"].get("id", None)
+                        if "gaap" in text_part["entity"] and text_part["entity"]["gaap"] is not None else None,
+                        gaap_master_id=text_part["entity"]["gaap"].get("master_id", None)
+                        if "gaap" in text_part["entity"] and text_part["entity"]["gaap"] is not None else None,
+                        label_id=text_part["entity"]["value"].get("label_id", None)
+                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None,
+                        location_id=text_part["entity"]["value"].get("location_id", None)
+                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None,
+                        us_gaap_id=text_part["entity"]["value"].get("us_gaap_id", None)
+                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None,
                         us_gaap_value=text_part["entity"]["value"].get("us_gaap_value", None)
+                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None
                     ))
 
                 if text_part["sub"]:
@@ -312,12 +319,18 @@ class EdgarParser:
                         context_ref=seg["entity"].get("contextRef", None),
                         continued_at=seg["entity"].get("continuedAt", None),
                         escape=bool(seg["entity"].get("continuedAt", None)),
-                        gaap_id=seg["entity"]["gaap"].get("id", None),
-                        gaap_master_id=seg["entity"]["gaap"].get("master_id", None),
-                        label_id=seg["entity"]["value"].get("label_id", None),
-                        location_id=seg["entity"]["value"].get("location_id", None),
-                        us_gaap_id=seg["entity"]["value"].get("us_gaap_id", None),
+                        gaap_id=seg["entity"]["gaap"].get("id", None)
+                        if "gaap" in seg["entity"] and seg["entity"]["gaap"] is not None else None,
+                        gaap_master_id=seg["entity"]["gaap"].get("master_id", None)
+                        if "gaap" in seg["entity"] and seg["entity"]["gaap"] is not None else None,
+                        label_id=seg["entity"]["value"].get("label_id", None)
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None,
+                        location_id=seg["entity"]["value"].get("location_id", None)
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None,
+                        us_gaap_id=seg["entity"]["value"].get("us_gaap_id", None)
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None,
                         us_gaap_value=seg["entity"]["value"].get("us_gaap_value", None)
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None
                     )
                 else:
                     textblock_entity = None
