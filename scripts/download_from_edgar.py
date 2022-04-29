@@ -26,6 +26,12 @@ NUMBER_REPORTS = 20
 PATH = "/cluster/edgar_filings_above$200B"
 START_DATE = date(2021, 1, 1)
 
+####
+NUMBER_REPORTS = 200
+PATH = "/shared_with_lars_and_thiago/ali/edgar_data/edgar_filings_above$200B"
+END_DATE = date(2020, 12, 31)
+####
+
 
 def main():
     if TICKER_FILE:
@@ -41,7 +47,8 @@ def main():
         try:
             filing = filings(
                 cik_lookup=ticker,
-                start_date=START_DATE,
+                # start_date=START_DATE,
+                end_date= END_DATE,
                 filing_type=FilingType.FILING_10K,
                 count=NUMBER_REPORTS,
                 user_agent=USER_AGENT

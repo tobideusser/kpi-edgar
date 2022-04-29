@@ -114,10 +114,10 @@ def main():
         data_parsing,
         data_tokenizing,
         data_tagging,
-        annotation_merging,
-        sub_word_tokenization,
-        model_training,
-        model_predicting
+        # annotation_merging,
+        # sub_word_tokenization,
+        # model_training,
+        # model_predicting
     ]
 
     # create list of resources

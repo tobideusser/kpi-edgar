@@ -1,12 +1,14 @@
 # Base directory to store all task outputs
-base_dir: "/scratch/data/edgar/v2/"
+#base_dir: "/scratch/data/edgar/v2/"
+base_dir: "/shared_with_lars_and_thiago/ali/edgar_data/data_tasks/"
 
 ################
 # DATA PARSING #
 ################
 
 DataParsing:
-  path_to_data_folders: "/cluster/home/edgar_filings_above$200B"
+#  path_to_data_folders: "/cluster/home/edgar_filings_above$200B"
+  path_to_data_folders: "/shared_with_lars_and_thiago/ali/edgar_data/edgar_filings_above$200B"
   entity_prefixes: ["us-gaap"]
   entity_formats: ["ixt:numdotdecimal", "ix:nonFraction"]
   dataset_name: "EDGAR"
