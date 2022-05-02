@@ -1,5 +1,5 @@
 # Base directory to store all task outputs
-base_dir: "/scratch/data/edgar/v3/"
+base_dir: "/scratch/data/edgar/v3_gridsearch/"
 
 ################
 # DATA PARSING #
