@@ -30,7 +30,8 @@ setup(
                       "unidecode",    # NOT MIT
                       "xlrd==1.2.0",  # current version can not read in excel anymore
                       "xlwt",
-                      "wandb"],
+                      "wandb",
+                      "gensim"],
     extras_require={"jupyter": ["jupyterlab",
                                 "jupyter_contrib_nbextensions"]}
 )

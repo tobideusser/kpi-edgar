@@ -1,5 +1,5 @@
 # Base directory to store all task outputs
-base_dir: "/scratch/data/edgar/v2/"
+base_dir: "/shared_with_lars_and_thiago/edgar/new_baselines"
 
 ################
 # DATA PARSING #
@@ -84,7 +84,32 @@ ModelTraining:
     type_: "untrained" #"pretrained_decoder"
     path_pretrained_model: "/scratch/data/edgar/banz_pretraining/ModelTraining/000" #/models/best_model.pt"
 
+#    encoder_params:
+#      type_: *tokname
+#      finetune: true
+#      word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+#      output_attentions: false
+#      output_hidden_states: false
+
     encoder_params:
+      # edgar w2v embeddings
+#      encoder_type_: "edgarW2V"
+#      path_embedding: "/shared_with_lars_and_thiago/edgar/edgar-w2v-200d/edgar.word.w2v.200.bin"
+#      embedding_dim: 200
+#      oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
+#      seed: 100
+#      word_pooling: 'max'
+
+#      # glove embeddings
+#      encoder_type_: "glove"
+#      path_embedding: "/shared_with_lars_and_thiago/edgar/edgar-w2v-200d/edgar.word.w2v.200.bin"
+#      embedding_dim: 200
+#      oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
+#      seed: 100
+#      word_pooling: 'max'
+
+#      # main bert sentence encoder
+      encoder_type_: "sentenceEncoder"
       type_: *tokname
       finetune: true
       word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
