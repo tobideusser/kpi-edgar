@@ -5,7 +5,7 @@ from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
 from edgar.data_classes import Labels
 from edgar.trainer.utils import get_device
-from edgar.models import SentenceEncoder, JointDecoder
+from edgar.models import JointDecoder #, SentenceEncoder
 from edgar.models.encoders import Encoder
 
 
@@ -33,7 +33,7 @@ class JointNERAndREModel(nn.Module):
             labels: Labels,
     ):
 
-        # testing general encoder code
+        # encoder code
         model_type = encoder_params.pop("encoder_type_")
         if model_type == "sentenceEncoder":
             encoder = Encoder.from_config(encoder_type_=model_type,
@@ -45,13 +45,6 @@ class JointNERAndREModel(nn.Module):
                                           **encoder_params)
             decoder_input_dim = encoder.emb_dim
 
-        # testing edgar W2V embeddings
-        # encoder = EdgarW2VEncoder(**encoder_params)
-        # decoder_input_dim = encoder.emb_dim
-
-        # old code
-        # encoder = SentenceEncoder(tokenizer=tokenizer, **encoder_params).to(get_device())
-        # decoder_input_dim = encoder.encoder.config.hidden_size
         decoder = JointDecoder.from_config(labels=labels,
                                            input_dim=decoder_input_dim,
                                            **decoder_params).to(get_device())
