@@ -93,21 +93,21 @@ ModelTraining:
 #      seed: 100
 #      word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
 
-#      # glove embeddings
-#      encoder_type_: "glove"
-#      path_embedding: "/shared_with_lars_and_thiago/edgar/edgar-w2v-200d/edgar.word.w2v.200.bin"
-#      embedding_dim: 200
-#      oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
-#      seed: 100
-#      word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
+      # glove embeddings
+      encoder_type_: "glove"
+      path_embedding: "/shared_with_lars_and_thiago/edgar/glove-6B/glove-6B-200d.txt"
+      embedding_dim: 200
+      oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
+      seed: 100
+      word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
 
 #      # main bert sentence encoder
-      encoder_type_: "sentenceEncoder"
-      type_: *tokname
-      finetune: true
-      word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
-      output_attentions: false
-      output_hidden_states: false
+#      encoder_type_: "sentenceEncoder"
+#      type_: *tokname
+#      finetune: true
+#      word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+#      output_attentions: false
+#      output_hidden_states: false
 
     decoder_params:
       ner_params:
