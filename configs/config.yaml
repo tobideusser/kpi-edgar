@@ -84,13 +84,6 @@ ModelTraining:
     type_: "untrained" #"pretrained_decoder"
     path_pretrained_model: "/scratch/data/edgar/banz_pretraining/ModelTraining/000" #/models/best_model.pt"
 
-#    encoder_params:
-#      type_: *tokname
-#      finetune: true
-#      word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
-#      output_attentions: false
-#      output_hidden_states: false
-
     encoder_params:
       # edgar w2v embeddings
 #      encoder_type_: "edgarW2V"
