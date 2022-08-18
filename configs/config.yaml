@@ -91,7 +91,7 @@ ModelTraining:
 #      embedding_dim: 200
 #      oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
 #      seed: 100
-#      word_pooling: 'max'
+#      word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
 
 #      # glove embeddings
 #      encoder_type_: "glove"
@@ -99,7 +99,7 @@ ModelTraining:
 #      embedding_dim: 200
 #      oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
 #      seed: 100
-#      word_pooling: 'max'
+#      word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
 
 #      # main bert sentence encoder
       encoder_type_: "sentenceEncoder"
