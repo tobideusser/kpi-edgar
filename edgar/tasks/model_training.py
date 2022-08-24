@@ -3,11 +3,13 @@ import logging
 import os
 from copy import deepcopy
 from typing import Dict, Union, Optional
+import pickle as pkl
 
 from fluidml.common import Task
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerFast
 import torch
+from sklearn.feature_extraction.text import TfidfVectorizer
 from edgar.data_classes import Corpus, Labels
 from edgar.trainer import Trainer
 from edgar.trainer.checkpointer import Checkpointer
@@ -21,6 +23,11 @@ from edgar.models import JointNERAndREModel
 
 logger = logging.getLogger(__name__)
 
+
+# https://www.davidsbatista.net/blog/2018/02/28/TfidfVectorizer/
+# function created. because we dont want to use tfIdf own tokenizer
+def dummy_fun(doc):
+    return doc
 
 class ModelTraining(Task):
 
@@ -164,6 +171,31 @@ class ModelTraining(Task):
 
         logger.info('Instantiate train and valid torch datasets.')
         datasets = self._create_torch_datasets(corpus)
+
+        # code to handle when tfidf is used as baseline
+        if self.model_params['encoder_params']['encoder_type_'] == "tfidf":
+            path_to_tfIdf = self.model_params['encoder_params']['path_embedding']
+            if os.path.exists(path_to_tfIdf):
+                pass
+            else:
+                # creating training set for tfIdf
+                emb_dim = self.model_params['encoder_params']['embedding_dim']
+                sentence_lists_train = []
+                for sentence in datasets["train"].sentences:
+                    word_list = []
+                    for word in sentence.words:
+                        word_list.append(word.value.lower())
+                    sentence_lists_train.append(word_list)
+
+                vectorizer = TfidfVectorizer(max_features=emb_dim,
+                                             tokenizer=dummy_fun,
+                                             preprocessor=dummy_fun,
+                                             token_pattern=None)
+
+                vectorizer.fit(sentence_lists_train)
+                with open(path_to_tfIdf, 'wb') as fin:
+                    pkl.dump(vectorizer, fin)
+
 
         batch_collator = BatchCollator(pad_token_id=sub_word_tokenizer.pad_token_id)
 

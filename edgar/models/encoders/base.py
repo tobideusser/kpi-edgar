@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 ENCODER_models: Dict = {"sentenceEncoder": "edgar.models.encoders.SentenceEncoder",
                         "edgarW2V":  "edgar.models.encoders.EdgarW2VEncoder",
                         "glove": "edgar.models.encoders.GloveEncoder",
-                        "tfIdf": "to do"}
+                        "tfidf": "edgar.models.encoders.TfIdfEncoder"}
 
 
 class Encoder(nn.Module):
