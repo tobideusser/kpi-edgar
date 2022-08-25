@@ -195,28 +195,49 @@ class TrainLogger(ABC):
         max_name_length = max(len(name) for name in metrics.keys())
 
         for name, value in metrics.items():
-            if 'clf_report' in name:
-                value = TrainLogger._clf_report_dict_to_str(clf_report=value)
-            if isinstance(value, numbers.Number):
-                value = round(value, 4)
-            log_message += f'{name:{max_name_length}} {value}\n'
+            if "relevant" not in name:
+                if 'clf_report' in name:
+                    value = TrainLogger._clf_report_dict_to_str(clf_report=value)
+                if isinstance(value, numbers.Number):
+                    value = round(value, 4)
+                log_message += f'{name:{max_name_length}} {value}\n'
         return log_message
 
     @staticmethod
     def _clf_report_dict_to_str(clf_report: Dict) -> str:
-        headers = ('Type', 'Precision', 'Recall', 'F1', 'Support')
-        digits = 2
-        max_name_width = max(len(name) for name in clf_report.keys())
-        head_fmt = '    {:>{max_name_width}s} ' + ' {:>9}' * (len(headers) - 1)
-        report = '    \n'
-        report += head_fmt.format(*headers, max_name_width=max_name_width)
-        report += '    \n\n'
-        row_fmt = '    {:>{max_name_width}s} ' + ' {:>9.{digits}f}' * 3 + ' {:>9}\n'
-        for name, metrics in clf_report.items():
-            if name == 'micro avg':
-                report += '    \n'
-            row = (name,) + tuple(metrics.values())
-            report += row_fmt.format(*row, max_name_width=max_name_width, digits=digits)
+        if clf_report["micro avg"].get("strict", False):
+            metric_types = ["strict", "partial_type", "exact", "partial"]
+            report = ""
+            for metric_type in metric_types:
+                headers = ('Type', 'Precision', 'Recall', 'F1', 'Support')
+                digits = 2
+                max_name_width = max(len(name) for name in clf_report.keys())
+                head_fmt = '    {:>{max_name_width}s} ' + ' {:>9}' * (len(headers) - 1)
+                report += f"    \n {metric_type} \n"
+                report += head_fmt.format(*headers, max_name_width=max_name_width)
+                report += '    \n\n'
+                row_fmt = '    {:>{max_name_width}s} ' + ' {:>9.{digits}f}' * 3 + ' {:>9}\n'
+                for name, metric_dict in clf_report.items():
+                    if name == 'micro avg':
+                        report += '    \n'
+                    metrics = metric_dict[metric_type]
+                    row = (name,) + tuple(metrics.values())
+                    report += row_fmt.format(*row, max_name_width=max_name_width, digits=digits)
+                report += "\n"
+        else:
+            headers = ('Type', 'Precision', 'Recall', 'F1', 'Support')
+            digits = 2
+            max_name_width = max(len(name) for name in clf_report.keys())
+            head_fmt = '    {:>{max_name_width}s} ' + ' {:>9}' * (len(headers) - 1)
+            report = '    \n'
+            report += head_fmt.format(*headers, max_name_width=max_name_width)
+            report += '    \n\n'
+            row_fmt = '    {:>{max_name_width}s} ' + ' {:>9.{digits}f}' * 3 + ' {:>9}\n'
+            for name, metrics in clf_report.items():
+                if name == 'micro avg':
+                    report += '    \n'
+                row = (name,) + tuple(metrics.values())
+                report += row_fmt.format(*row, max_name_width=max_name_width, digits=digits)
         return report
 
     @classmethod

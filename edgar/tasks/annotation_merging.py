@@ -50,7 +50,8 @@ class AnnotationMerging(Task):
                 skip_sentences_with_error=self.skip_sentences_with_error,
                 filter_for_annotated_docs=self.filter_for_annotated_docs,
                 merge_auto_annotations=self.merge_auto_annotations,
-                label_mapping=self.label_mapping
+                label_mapping=self.label_mapping,
+                print_statistics=True
             )
 
             corpus, labels = annotation_merger.merge_annotations(corpus)

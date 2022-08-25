@@ -1,12 +1,12 @@
 # Base directory to store all task outputs
-base_dir: "/shared_with_lars_and_thiago/edgar/new_baselines"
+base_dir: "/scratch/data/edgar/icmla/v0"
 
 ################
 # DATA PARSING #
 ################
 
 DataParsing:
-  path_to_data_folders: "/cluster/home/edgar_filings_above$200B"
+  path_to_data_folders: "/cluster/edgar_filings_above$200B"
   entity_prefixes: ["us-gaap"]
   entity_formats: ["ixt:numdotdecimal", "ix:nonFraction"]
   dataset_name: "EDGAR"
@@ -36,7 +36,7 @@ DataTagging:
 #####################
 
 AnnotationMerging:
-  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations_v2.xlsx"
+  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations_v3.xlsx"
   filter_for_annotated_docs: true  # set false for self-training
   ignore_noncritical_warnings: true
   skip_sentences_with_error: true
@@ -47,10 +47,10 @@ AnnotationMerging:
     cy: 'cy'
     py: 'py'
     py1: "py1"
-    increase: 'increase'
-    increase_py: "increase_py"
-    decrease: 'decrease'
-    decrease_py: "decrease_py"
+    increase: "increase" #'cy'
+    increase_py: "increase_py" # "py"
+    decrease: "decrease" # 'cy'
+    decrease_py: "decrease_py" # "py"
     thereof: 'thereof'
     thereof_coref: 'thereof'
     attr: "attr"
@@ -67,7 +67,8 @@ AnnotationMerging:
 SubWordTokenization:
   # english: "bert-base-cased"
   # multilingual: "bert-base-multilingual-cased"
-  tokenizer_name: &tokname "bert-base-multilingual-cased" # **checking with this tokenizer 'bert-base-german-dbmdz-cased'
+  # "ahmedrachid/FinancialBERT"
+  tokenizer_name: &tokname "bert-base-cased" # **checking with this tokenizer 'bert-base-german-dbmdz-cased'
   special_tokens: null
 #    additional_special_tokens : [['[NUM]']] ** it was giving error with this argument
 
@@ -122,7 +123,7 @@ ModelTraining:
 #          neg_sampling: 100
 #          max_span_len: 10
 #          span_len_embedding_dim: 25
-#          pooling_fn: 'max' # ['avg', 'rnn_local', 'attention', 'max']
+#          pooling_fn: 'rnn_local' # 'max' # ['avg', 'rnn_local', 'attention', 'max']
 #          dropout: 0.1
 #          chunk_size: 1000
 #          use_cls: false
@@ -134,7 +135,7 @@ ModelTraining:
           use_cls: false  # [true, false]
           max_span_len: 100
           span_len_embedding_dim: 25
-          pooling_fn: "rnn_local" # ['rnn_local', 'rnn_local', 'attention' 'avg', 'max']
+          pooling_fn:  'rnn_local' # ['rnn_local', 'attention', 'avg', 'max']
           use_ner_hidden_states: null
           decoding_params:
             - type_: 'rnn'
@@ -149,12 +150,12 @@ ModelTraining:
         use_inbetween_context: true
         biaffine: false
         dropout: 0.1
-        pooling_fn: 'avg' # ['avg', 'rnn_local', 'attention', 'max'] # "rnn_local" # "avg" # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+        pooling_fn: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # "rnn_local" # "avg" # ['avg', 'rnn_local', 'attention' 'avg', 'max']
         chunk_size: 1000
         threshold: 0.5
         loss_weight: 1  # [1., 0.7, '@loss_weight']
-        filter_impossible_relations: true  # [true, true, true, false, false]  # only quantify improvement for best model
-        remove_overlapping_relations: true  # [true, true, false, true, false]  # [true, false]
+        filter_impossible_relations: false # [true, true, false, false] # true  # [true, true, true, false, false]  # only quantify improvement for best model
+        remove_overlapping_relations: true # [true, false, true, false] # true  # [true, true, false, true, false]  # [true, false]
 
 #    table_to_text_mode: true ** it was giving error with this argument
 
@@ -174,12 +175,14 @@ ModelTraining:
     lr_warmup: 0.1
 
   evaluator_params:
-    ner_f1: {}
-    re_f1:
-      mode: 'strict'
+#    ner_f1: {}
+    ner_f1_adjusted:
+      mode: "partial_type"
+    re_f1_adjusted:
+      mode: 'partial_type'
 
   trainer_params:
-    num_epochs: 1000
+    num_epochs: 35
     num_grad_accumulation_steps: 1        # accumulate gradients over x batches before updating weights: simulates high batch size training without memory issues
     grad_norm: 1.  # [null, 1.0, null, '@clip']  # null                # scales gradient values such that the norm of combined grad vector equals grad_norm
     grad_clipping: null  # [null, null, 1.0, '@clip']                   # clips gradient values to range [-grad_clipping, +grad_clipping]
@@ -193,4 +196,4 @@ ModelTraining:
 ####################
 
 ModelPredicting:
-  split_types: 'valid'
+  split_types: 'test'

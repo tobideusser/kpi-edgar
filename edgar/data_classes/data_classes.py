@@ -244,6 +244,14 @@ class Relation:
 
         tail_entity = d.get('tail_entity', None)
         d['tail_entity'] = Entity.from_dict(tail_entity) if tail_entity is not None else None
+        if "used_in_partial_type_metric" in d:
+            del d["used_in_partial_type_metric"]
+        if "used_in_strict_metric" in d:
+            del d["used_in_strict_metric"]
+        if "used_in_partial_metric" in d:
+            del d["used_in_partial_metric"]
+        if "used_in_exact_metric" in d:
+            del d["used_in_exact_metric"]
         return cls(**d)
 
     def to_dict(self) -> Dict:

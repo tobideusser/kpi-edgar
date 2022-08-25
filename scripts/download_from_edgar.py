@@ -24,7 +24,7 @@ COMPANY_TICKER = [
 ]
 NUMBER_REPORTS = 20
 PATH = "/cluster/edgar_filings_above$200B"
-START_DATE = date(2021, 1, 1)
+START_DATE = date(2020, 1, 1)
 
 
 def main():

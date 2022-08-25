@@ -148,12 +148,21 @@ class Trainer:
                         break
 
             # Create overall metrics dict
-            metrics['epoch'] = self.current_epoch
+            metrics["epoch"] = self.current_epoch
 
-            for name, value in train_metrics.items():
-                metrics['training_' + name] = value
-            for name, value in valid_metrics.items():
-                metrics['validation_' + name] = value
+            if "relevant_re_clf_report" in train_metrics:
+                for name, value in train_metrics["relevant_re_clf_report"].items():
+                    metrics["training_" + name] = value
+            else:
+                for name, value in train_metrics.items():
+                    metrics["training_" + name] = value
+
+            if "relevant_re_clf_report" in valid_metrics:
+                for name, value in valid_metrics["relevant_re_clf_report"].items():
+                    metrics["validation_" + name] = value
+            else:
+                for name, value in valid_metrics.items():
+                    metrics["validation_" + name] = value
 
             if self.metric_tracker.is_best_so_far():
                 # Update all the best_ metrics.
