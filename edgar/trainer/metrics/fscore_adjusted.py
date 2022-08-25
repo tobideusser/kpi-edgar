@@ -77,10 +77,10 @@ class FBeta(Metric):
         self._true_sum: Optional[torch.Tensor] = None
 
     def __call__(
-            self,
-            predictions: torch.Tensor,
-            targets: torch.Tensor,
-            mask: Optional[torch.BoolTensor] = None,
+        self,
+        predictions: torch.Tensor,
+        targets: torch.Tensor,
+        mask: Optional[torch.BoolTensor] = None,
     ):
         """
         # Parameters
@@ -99,8 +99,7 @@ class FBeta(Metric):
         num_classes = predictions.size(-1)
         if (targets >= num_classes).any():
             raise ValueError(
-                "A gold label passed to FBetaMeasure contains "
-                f"an id >= {num_classes}, the number of classes."
+                "A gold label passed to FBetaMeasure contains " f"an id >= {num_classes}, the number of classes."
             )
 
         # It means we call this metric at the first time
@@ -126,9 +125,7 @@ class FBeta(Metric):
         if true_positives_bins.shape[0] == 0:
             true_positive_sum = torch.zeros(num_classes, device=device)
         else:
-            true_positive_sum = torch.bincount(
-                true_positives_bins.long(), minlength=num_classes
-            ).float()
+            true_positive_sum = torch.bincount(true_positives_bins.long(), minlength=num_classes).float()
 
         pred_bins = argmax_predictions[mask & pred_mask].long()
         # Watch it:
@@ -176,7 +173,7 @@ class FBeta(Metric):
             pred_sum = pred_sum.sum()  # type: ignore
             true_sum = true_sum.sum()  # type: ignore
 
-        beta2 = self._beta ** 2
+        beta2 = self._beta**2
         # Finally, we have all our sufficient statistics.
         precision = nan_safe_tensor_divide(tp_sum, pred_sum)
         recall = nan_safe_tensor_divide(tp_sum, true_sum)
@@ -244,27 +241,27 @@ class NERF1Adjusted(Metric):
         self.gt_entities: List[List[Dict]] = []
         self.entity_types: Optional[List[str]] = None
 
-    def __call__(self,
-                 entities_anno: List[List[Dict]],
-                 entities_pred: List[Dict],
-                 entity_types: List[str]):
+    def __call__(self, entities_anno: List[List[Dict]], entities_pred: List[Dict], entity_types: List[str]):
         """Evaluate NER predictions
-                Args:
-                    pred_entities (list) :  list of list of predicted entities (several entities in each sentence)
-                    gt_entities (list) :    list of list of ground truth entities
-                        entity = {"start": start_idx (inclusive),
-                                  "end": end_idx (exclusive),
-                                  "type": ent_type}
-                    entity_types (list):     list of entity types
-                                  """
+        Args:
+            pred_entities (list) :  list of list of predicted entities (several entities in each sentence)
+            gt_entities (list) :    list of list of ground truth entities
+                entity = {"start": start_idx (inclusive),
+                          "end": end_idx (exclusive),
+                          "type": ent_type}
+            entity_types (list):     list of entity types
+        """
         if self.entity_types is None:
             self.entity_types = entity_types
 
         self.gt_entities.extend(entities_anno)
         # self.pred_entities.extend(pred_entities)
-        self.pred_entities.extend([[{"start": span[0], "end": span[1], "type_": ent_type}
-                                    for span, ent_type in s.items()]
-                                   for s in entities_pred])
+        self.pred_entities.extend(
+            [
+                [{"start": span[0], "end": span[1], "type_": ent_type} for span, ent_type in s.items()]
+                for s in entities_pred
+            ]
+        )
 
     def get_metric(self, reset: bool = False):
         assert len(self.pred_entities) == len(self.gt_entities)
@@ -279,8 +276,9 @@ class NERF1Adjusted(Metric):
                 # Exact: exact boundary match over the surface string, regardless of the type
                 "exact": {"tp": 0, "fp": 0, "fn": 0},
                 # Partial: partial boundary match over the surface string, regardless of the type
-                "partial": {"tp": 0, "fp": 0, "fn": 0}
-            } for ent in self.entity_types
+                "partial": {"tp": 0, "fp": 0, "fn": 0},
+            }
+            for ent in self.entity_types
         }
         clf_report = {}
 
@@ -352,6 +350,7 @@ class NERF1Adjusted(Metric):
                                 largest_partial_tp_overlap = tp_overlap
                                 corresponding_partial_fp_overlap = fp_overlap
                                 best_partial_entity = predicted_entity
+
                     else:
                         if tp_overlap == 1 and fp_overlap == 0:
                             # case 3
@@ -418,18 +417,23 @@ class NERF1Adjusted(Metric):
             for statistic_type in statistics[ent_type].keys():  # strict, exact, type, partial
                 if statistic_type != "support":
                     if statistics[ent_type][statistic_type]["tp"] != 0:
-                        precision = 100 * statistics[ent_type][statistic_type]["tp"] / \
-                                    (statistics[ent_type][statistic_type]["fp"] +
-                                     statistics[ent_type][statistic_type]["tp"])
-                        recall = 100 * statistics[ent_type][statistic_type]["tp"] / \
-                                 (statistics[ent_type][statistic_type]["fn"] + statistics[ent_type][statistic_type]["tp"])
+                        precision = (
+                            100
+                            * statistics[ent_type][statistic_type]["tp"]
+                            / (statistics[ent_type][statistic_type]["fp"] + statistics[ent_type][statistic_type]["tp"])
+                        )
+                        recall = (
+                            100
+                            * statistics[ent_type][statistic_type]["tp"]
+                            / (statistics[ent_type][statistic_type]["fn"] + statistics[ent_type][statistic_type]["tp"])
+                        )
                     else:
-                        precision, recall = 0., 0.
+                        precision, recall = 0.0, 0.0
 
                     if not precision + recall == 0:
                         f1 = 2 * precision * recall / (precision + recall)
                     else:
-                        f1 = 0.
+                        f1 = 0.0
 
                     support = statistics[ent_type]["support"]
 
@@ -439,7 +443,7 @@ class NERF1Adjusted(Metric):
                         "Precision": precision,
                         "Recall": recall,
                         "F1": f1,
-                        "Support": support
+                        "Support": support,
                     }
                     clf_report[ent_type]["Support"] = support
 
@@ -464,34 +468,43 @@ class NERF1Adjusted(Metric):
                 micro_recall = 100 * tp / (tp + fn)
                 micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
             else:
-                micro_precision, micro_recall, micro_f1 = 0., 0., 0.
+                micro_precision, micro_recall, micro_f1 = 0.0, 0.0, 0.0
 
             clf_report["micro avg"][metric_type] = {
                 "Precision": micro_precision,
                 "Recall": micro_recall,
                 "F1": micro_f1,
-                "Support": support_all
+                "Support": support_all,
             }
 
             # macro
-            macro_precision = np.mean([
-                clf_report[ent_type][metric_type]["Precision"]
-                for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0
-            ])
-            macro_recall = np.mean([
-                clf_report[ent_type][metric_type]["Recall"]
-                for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0
-            ])
-            macro_f1 = np.mean([
-                clf_report[ent_type][metric_type]["F1"]
-                for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0
-            ])
+            macro_precision = np.mean(
+                [
+                    clf_report[ent_type][metric_type]["Precision"]
+                    for ent_type in self.entity_types
+                    if clf_report[ent_type]["Support"] > 0
+                ]
+            )
+            macro_recall = np.mean(
+                [
+                    clf_report[ent_type][metric_type]["Recall"]
+                    for ent_type in self.entity_types
+                    if clf_report[ent_type]["Support"] > 0
+                ]
+            )
+            macro_f1 = np.mean(
+                [
+                    clf_report[ent_type][metric_type]["F1"]
+                    for ent_type in self.entity_types
+                    if clf_report[ent_type]["Support"] > 0
+                ]
+            )
 
             clf_report["macro avg"][metric_type] = {
                 "Precision": macro_precision,
                 "Recall": macro_recall,
                 "F1": macro_f1,
-                "Support": support_all
+                "Support": support_all,
             }
             if metric_type == self.mode:
                 micro_f1_to_be_returned = micro_f1
@@ -501,14 +514,14 @@ class NERF1Adjusted(Metric):
                         "Precision": micro_precision,
                         "Recall": micro_recall,
                         "F1": micro_f1,
-                        "Support": support_all
+                        "Support": support_all,
                     },
                     "macro avg": {
                         "Precision": macro_precision,
                         "Recall": macro_recall,
                         "F1": macro_f1,
-                        "Support": support_all
-                    }
+                        "Support": support_all,
+                    },
                 }
 
         if reset:
@@ -519,7 +532,7 @@ class NERF1Adjusted(Metric):
             "ner_clf_report": clf_report,
             "relevant_ner_clf_report": relevant_clf_report,
             "ner_micro_f1": micro_f1_to_be_returned,
-            "ner_macro_f1": macro_f1_to_be_returned
+            "ner_macro_f1": macro_f1_to_be_returned,
         }
 
     def reset(self):
@@ -528,7 +541,7 @@ class NERF1Adjusted(Metric):
 
 
 class REF1Adjusted(Metric):
-    def __init__(self, mode: str = 'strict'):
+    def __init__(self, mode: str = "strict"):
         super().__init__()
         assert mode in ["strict", "partial_type", "exact", "partial"]
         self.mode = mode
@@ -537,20 +550,22 @@ class REF1Adjusted(Metric):
         self.gt_relations: List[List[Dict]] = []
         self.relation_types: Optional[List[str]] = None
 
-    def __call__(self,
-                 relations_anno: List[List[Dict]],
-                 relations_pred: List[List[Dict]],
-                 entities_anno: List[List[Dict]],
-                 relation_types: List[str]):
+    def __call__(
+        self,
+        relations_anno: List[List[Dict]],
+        relations_pred: List[List[Dict]],
+        entities_anno: List[List[Dict]],
+        relation_types: List[str],
+    ):
         """Evaluate RE predictions
-            Args:
-                pred_relations (list) :  list of list of predicted relations (several relations in each sentence)
-                gt_relations (list) :    list of list of ground truth relations
-                    rel = { "head": (start_idx (inclusive), end_idx (exclusive)),
-                            "tail": (start_idx (inclusive), end_idx (exclusive)),
-                            "head_type": ent_type,
-                            "tail_type": ent_type,
-                            "type": rel_type}
+        Args:
+            pred_relations (list) :  list of list of predicted relations (several relations in each sentence)
+            gt_relations (list) :    list of list of ground truth relations
+                rel = { "head": (start_idx (inclusive), end_idx (exclusive)),
+                        "tail": (start_idx (inclusive), end_idx (exclusive)),
+                        "head_type": ent_type,
+                        "tail_type": ent_type,
+                        "type": rel_type}
         """
         if self.relation_types is None:
             self.relation_types = relation_types
@@ -573,12 +588,7 @@ class REF1Adjusted(Metric):
             self.gt_relations.append(rel_sent)
 
     @staticmethod
-    def calculate_relation_overlap(
-            gt_relation_head,
-            gt_relation_tail,
-            pred_relation_head,
-            pred_relation_tail
-    ):
+    def calculate_relation_overlap(gt_relation_head, gt_relation_tail, pred_relation_head, pred_relation_tail):
         # assume symmetric relation (for now?)
         # todo: maybe add option for non symmetric relation?
         gt_relation_head_span = set(range(min(gt_relation_head), max(gt_relation_head)))
@@ -591,24 +601,28 @@ class REF1Adjusted(Metric):
 
         if len(overlap_between_gt_head_and_pred_head) >= len(overlap_between_gt_head_and_pred_tail):
             gt_head_tp = len(overlap_between_gt_head_and_pred_head) / len(gt_relation_head_span)
-            gt_head_fp = \
-                len(pred_relation_head_span - overlap_between_gt_head_and_pred_head) / len(pred_relation_head_span)
+            gt_head_fp = len(pred_relation_head_span - overlap_between_gt_head_and_pred_head) / len(
+                pred_relation_head_span
+            )
         else:
             gt_head_tp = len(overlap_between_gt_head_and_pred_tail) / len(gt_relation_head_span)
-            gt_head_fp = \
-                len(pred_relation_tail_span - overlap_between_gt_head_and_pred_tail) / len(pred_relation_tail_span)
+            gt_head_fp = len(pred_relation_tail_span - overlap_between_gt_head_and_pred_tail) / len(
+                pred_relation_tail_span
+            )
 
         overlap_between_gt_tail_and_pred_head = gt_relation_tail_span.intersection(pred_relation_head_span)
         overlap_between_gt_tail_and_pred_tail = gt_relation_tail_span.intersection(pred_relation_tail_span)
 
         if len(overlap_between_gt_tail_and_pred_tail) >= len(overlap_between_gt_tail_and_pred_head):
             gt_tail_tp = len(overlap_between_gt_tail_and_pred_tail) / len(gt_relation_tail_span)
-            gt_tail_fp = \
-                len(pred_relation_tail_span - overlap_between_gt_tail_and_pred_tail) / len(pred_relation_tail_span)
+            gt_tail_fp = len(pred_relation_tail_span - overlap_between_gt_tail_and_pred_tail) / len(
+                pred_relation_tail_span
+            )
         else:
             gt_tail_tp = len(overlap_between_gt_tail_and_pred_head) / len(gt_relation_tail_span)
-            gt_tail_fp = \
-                len(pred_relation_head_span - overlap_between_gt_tail_and_pred_head) / len(pred_relation_head_span)
+            gt_tail_fp = len(pred_relation_head_span - overlap_between_gt_tail_and_pred_head) / len(
+                pred_relation_head_span
+            )
 
         return (gt_head_tp + gt_tail_tp) / 2, (gt_head_fp + gt_tail_fp) / 2
 
@@ -625,8 +639,9 @@ class REF1Adjusted(Metric):
                 # Exact: exact boundary match over the surface string, regardless of the type
                 "exact": {"tp": 0, "fp": 0, "fn": 0},
                 # Partial: partial boundary match over the surface string, regardless of the type
-                "partial": {"tp": 0, "fp": 0, "fn": 0}
-            } for rel in self.relation_types
+                "partial": {"tp": 0, "fp": 0, "fn": 0},
+            }
+            for rel in self.relation_types
         }
         clf_report = {}
 
@@ -661,15 +676,15 @@ class REF1Adjusted(Metric):
                             gt_relation_head=ground_truth_head,
                             gt_relation_tail=ground_truth_tail,
                             pred_relation_head=predicted_relation["head"],
-                            pred_relation_tail=predicted_relation["tail"]
+                            pred_relation_tail=predicted_relation["tail"],
                         )
 
                         if (
-                                (ground_truth_head_type == predicted_relation["head_type"]
-                                 and ground_truth_tail_type == predicted_relation["tail_type"])
-                                or
-                                (ground_truth_head_type == predicted_relation["tail_type"]
-                                 and ground_truth_tail_type == predicted_relation["head_type"])
+                            ground_truth_head_type == predicted_relation["head_type"]
+                            and ground_truth_tail_type == predicted_relation["tail_type"]
+                        ) or (
+                            ground_truth_head_type == predicted_relation["tail_type"]
+                            and ground_truth_tail_type == predicted_relation["head_type"]
                         ):
                             # type match
 
@@ -758,7 +773,6 @@ class REF1Adjusted(Metric):
                     if not predicted_relation.get("used_in_partial_metric", False):
                         statistics[rel_type]["partial"]["fp"] += 1
 
-
                 # statistics[rel_type]["tp"] += len(pred_rels & gt_rels)
                 # statistics[rel_type]["fp"] += len(pred_rels - gt_rels)
                 # statistics[rel_type]["fn"] += len(gt_rels - pred_rels)
@@ -768,19 +782,23 @@ class REF1Adjusted(Metric):
             for statistic_type in statistics[rel_type].keys():  # strict, exact, type, partial
                 if statistic_type != "support":
                     if statistics[rel_type][statistic_type]["tp"] != 0:
-                        precision = 100 * statistics[rel_type][statistic_type]["tp"] / \
-                                    (statistics[rel_type][statistic_type]["fp"] +
-                                     statistics[rel_type][statistic_type]["tp"])
-                        recall = 100 * statistics[rel_type][statistic_type]["tp"] / \
-                                 (statistics[rel_type][statistic_type]["fn"] +
-                                  statistics[rel_type][statistic_type]["tp"])
+                        precision = (
+                            100
+                            * statistics[rel_type][statistic_type]["tp"]
+                            / (statistics[rel_type][statistic_type]["fp"] + statistics[rel_type][statistic_type]["tp"])
+                        )
+                        recall = (
+                            100
+                            * statistics[rel_type][statistic_type]["tp"]
+                            / (statistics[rel_type][statistic_type]["fn"] + statistics[rel_type][statistic_type]["tp"])
+                        )
                     else:
-                        precision, recall = 0., 0.
+                        precision, recall = 0.0, 0.0
 
                     if not precision + recall == 0:
                         f1 = 2 * precision * recall / (precision + recall)
                     else:
-                        f1 = 0.
+                        f1 = 0.0
 
                     support = statistics[rel_type]["support"]
 
@@ -790,7 +808,7 @@ class REF1Adjusted(Metric):
                         "Precision": precision,
                         "Recall": recall,
                         "F1": f1,
-                        "Support": support
+                        "Support": support,
                     }
                     clf_report[rel_type]["Support"] = support
 
@@ -815,34 +833,43 @@ class REF1Adjusted(Metric):
                 micro_recall = 100 * tp / (tp + fn)
                 micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
             else:
-                micro_precision, micro_recall, micro_f1 = 0., 0., 0.
+                micro_precision, micro_recall, micro_f1 = 0.0, 0.0, 0.0
 
             clf_report["micro avg"][metric_type] = {
                 "Precision": micro_precision,
                 "Recall": micro_recall,
                 "F1": micro_f1,
-                "Support": support_all
+                "Support": support_all,
             }
 
             # macro
-            macro_precision = np.mean([
-                clf_report[rel_type][metric_type]["Precision"]
-                for rel_type in self.relation_types if clf_report[rel_type]["Support"] > 0
-            ])
-            macro_recall = np.mean([
-                clf_report[rel_type][metric_type]["Recall"]
-                for rel_type in self.relation_types if clf_report[rel_type]["Support"] > 0
-            ])
-            macro_f1 = np.mean([
-                clf_report[rel_type][metric_type]["F1"]
-                for rel_type in self.relation_types if clf_report[rel_type]["Support"] > 0
-            ])
+            macro_precision = np.mean(
+                [
+                    clf_report[rel_type][metric_type]["Precision"]
+                    for rel_type in self.relation_types
+                    if clf_report[rel_type]["Support"] > 0
+                ]
+            )
+            macro_recall = np.mean(
+                [
+                    clf_report[rel_type][metric_type]["Recall"]
+                    for rel_type in self.relation_types
+                    if clf_report[rel_type]["Support"] > 0
+                ]
+            )
+            macro_f1 = np.mean(
+                [
+                    clf_report[rel_type][metric_type]["F1"]
+                    for rel_type in self.relation_types
+                    if clf_report[rel_type]["Support"] > 0
+                ]
+            )
 
             clf_report["macro avg"][metric_type] = {
                 "Precision": macro_precision,
                 "Recall": macro_recall,
                 "F1": macro_f1,
-                "Support": support_all
+                "Support": support_all,
             }
             if metric_type == self.mode:
                 micro_f1_to_be_returned = micro_f1
@@ -852,14 +879,14 @@ class REF1Adjusted(Metric):
                         "Precision": micro_precision,
                         "Recall": micro_recall,
                         "F1": micro_f1,
-                        "Support": support_all
+                        "Support": support_all,
                     },
                     "macro avg": {
                         "Precision": macro_precision,
                         "Recall": macro_recall,
                         "F1": macro_f1,
-                        "Support": support_all
-                    }
+                        "Support": support_all,
+                    },
                 }
 
         if reset:
@@ -869,7 +896,7 @@ class REF1Adjusted(Metric):
             "re_clf_report": clf_report,
             "relevant_re_clf_report": relevant_clf_report,
             "re_micro_f1": micro_f1_to_be_returned,
-            "re_macro_f1": macro_f1_to_be_returned
+            "re_macro_f1": macro_f1_to_be_returned,
         }
 
     def reset(self):
