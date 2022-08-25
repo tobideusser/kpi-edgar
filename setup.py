@@ -9,7 +9,7 @@ setup(
     packages=find_packages(),
     install_requires=["aim",
                       "babel",
-                      "fluidml",
+                      "fluidml",  # install from source (branch run-info-access)
                       "jinja2",
                       "lxml",
                       "matplotlib",
@@ -19,7 +19,7 @@ setup(
                       "pandas",
                       "pyyaml",
                       "rapidfuzz",
-                      "secedgar",  # requires version 0.4 from github
+                      "secedgar==0.4.0",
                       "sklearn",
                       "syntok",
                       "tensorboard",

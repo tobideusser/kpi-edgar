@@ -322,6 +322,11 @@ class AnnotationMerger:
             logger.warning("\nGeneral Information:\n")
             logger.warning(f"Documents annotated: {len(np.unique([res['doc_name'] for res in results]))}")
             logger.warning(f"Sentences annotated: {len(results)}")
+            sentences_split = {split_type: [
+                sentence for sentence in results if sentence["split_type"] == split_type
+            ] for split_type in ["train", "valid", "test"]}
+            for split_type in ["train", "valid", "test"]:
+                logger.warning(f" - thereof {split_type}: {len(sentences_split[split_type])}")
             # extract all entities
             all_entities = [entity["type"]
                             for sentence in [sentence["entities"] for sentence in results]
