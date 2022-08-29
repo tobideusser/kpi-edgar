@@ -6,5 +6,5 @@ First, install all required packages by running ***pip install /path/to/setup.py
 
 Then, download the data from the EDGAR database with the ***download_from_edgar.py*** located under the folder ***/scripts***.
 
-Thereafter, kick of the training pipeline by executing the ***run_train_pipeline.py*** and adding the relevant folder to
-the config under the folder ***/config***.
+Thereafter, kick of the training pipeline by adding the relevant folder to the config under the folder ***/config*** 
+and executing the ***run_train_pipeline.py*** located under ***/scripts***.
