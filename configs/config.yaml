@@ -36,7 +36,7 @@ DataTagging:
 #####################
 
 AnnotationMerging:
-  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations_v4.xlsx"
+  excel_annotation_file: "/scratch/projects/edgar/data/kpi_edgar.xlsx"
   filter_for_annotated_docs: true  # set false for self-training
   ignore_noncritical_warnings: true
   skip_sentences_with_error: true
