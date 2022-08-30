@@ -29,14 +29,14 @@ class RelationError(Exception):
 
 class AnnotationMerger:
     def __init__(
-            self,
-            excel_annotation_path: str,
-            print_statistics: bool = False,
-            ignore_noncritical_warnings: bool = False,
-            skip_sentences_with_error: bool = False,
-            filter_for_annotated_docs: bool = False,
-            merge_auto_annotations: bool = False,
-            label_mapping: Optional[Dict] = None
+        self,
+        excel_annotation_path: str,
+        print_statistics: bool = False,
+        ignore_noncritical_warnings: bool = False,
+        skip_sentences_with_error: bool = False,
+        filter_for_annotated_docs: bool = False,
+        merge_auto_annotations: bool = False,
+        label_mapping: Optional[Dict] = None,
     ):
         self.excel_annotation_path = excel_annotation_path
         self.print_statistics = print_statistics
@@ -72,17 +72,21 @@ class AnnotationMerger:
         """
         entity1 = entities[entity1_pos]
         entity2 = entities[entity2_pos]
-        remaining_entities = [x["type"] for i, x in enumerate(entities)
-                              if i not in {entity1_pos, entity2_pos}
-                              and x["rel_anno1"] == entity1["rel_anno1"]
-                              and x["rel_anno2"] == entity1["rel_anno2"]]
+        remaining_entities = [
+            x["type"]
+            for i, x in enumerate(entities)
+            if i not in {entity1_pos, entity2_pos}
+            and x["rel_anno1"] == entity1["rel_anno1"]
+            and x["rel_anno2"] == entity1["rel_anno2"]
+        ]
         if entity1["rel_anno1"] == entity2["rel_anno1"] and entity1["rel_anno1"] != "0":
             if entity1["rel_anno2"] == entity2["rel_anno2"] and entity1["rel_anno2"] is not None:
                 if {entity1["type"], entity2["type"]} in ALLOWED_RELATIONS:
                     # example: davon_1_1 to davon_cy_1_1
                     return True
-                elif (AnnotationMerger._pairs_in_allowed_relations(remaining_entities + [entity1["type"]])
-                      or AnnotationMerger._pairs_in_allowed_relations(remaining_entities + [entity2["type"]])):
+                elif AnnotationMerger._pairs_in_allowed_relations(
+                    remaining_entities + [entity1["type"]]
+                ) or AnnotationMerger._pairs_in_allowed_relations(remaining_entities + [entity2["type"]]):
                     # example: davon_py_1_1 to davon_cy_1_1, but davon_1_1 exists
                     #          (and hence, davon_1_1 will be linked to davon_cy_1_1 and davon_py_1_1)
                     return False
@@ -93,9 +97,9 @@ class AnnotationMerger:
             else:
                 if {entity1["type"], entity2["type"]} not in ALLOWED_RELATIONS:
                     if (
-                            entity1["rel_anno2"] != entity2["rel_anno2"]
-                            or AnnotationMerger._pairs_in_allowed_relations(remaining_entities + [entity1["type"]])
-                            or AnnotationMerger._pairs_in_allowed_relations(remaining_entities + [entity2["type"]])
+                        entity1["rel_anno2"] != entity2["rel_anno2"]
+                        or AnnotationMerger._pairs_in_allowed_relations(remaining_entities + [entity1["type"]])
+                        or AnnotationMerger._pairs_in_allowed_relations(remaining_entities + [entity2["type"]])
                     ):
                         # example1: kpi_1 to davon_cy_1_1
                         #           no annotation error, simply not linked
@@ -107,9 +111,9 @@ class AnnotationMerger:
                         #          kpi is not allowed to be linked to davon_cy -> annotation error
                         raise RelationError(entity1, entity2)
                 elif (
-                        entity1["rel_anno2"] != entity2["rel_anno2"]
-                        and entity1["rel_anno2"] is not None
-                        and entity2["rel_anno2"] is not None
+                    entity1["rel_anno2"] != entity2["rel_anno2"]
+                    and entity1["rel_anno2"] is not None
+                    and entity2["rel_anno2"] is not None
                 ):
                     # example: davon_1_2 to davon_cy_1_1
                     #          no annotation error, simply not linked
@@ -166,10 +170,12 @@ class AnnotationMerger:
                     # read the actual sentence tokens & raw annotations
                     # todo: str(token)
                     tokens = [str(token) for token in sheet.row_values(sentence_counter * 7 + 4)[1:] if token != ""]
-                    raw_auto_annotations = [anno for anno in
-                                            sheet.row_values(sentence_counter * 7 + 5)[1:(len(tokens) + 1)]]
-                    raw_man_annotations = [anno for anno in
-                                           sheet.row_values(sentence_counter * 7 + 6)[1:(len(tokens) + 1)]]
+                    raw_auto_annotations = [
+                        anno for anno in sheet.row_values(sentence_counter * 7 + 5)[1 : (len(tokens) + 1)]
+                    ]
+                    raw_man_annotations = [
+                        anno for anno in sheet.row_values(sentence_counter * 7 + 6)[1 : (len(tokens) + 1)]
+                    ]
 
                     # merge auto annotations and manual annotations
                     if self.merge_auto_annotations:
@@ -195,14 +201,20 @@ class AnnotationMerger:
                         for raw_entity in raw_entities:
                             if raw_entity != "":
                                 # get all positions of the entity
-                                positions = [pos for pos, raw_anno in enumerate(raw_annotations)
-                                             if raw_anno == raw_entity]
+                                positions = [
+                                    pos for pos, raw_anno in enumerate(raw_annotations) if raw_anno == raw_entity
+                                ]
 
                                 if raw_entity == "false_positive":
-                                    entities.append({"type": raw_entity,
-                                                     "start": min(positions),
-                                                     "end": max(positions) + 1, "rel_anno1": "0",
-                                                     "rel_anno2": None})
+                                    entities.append(
+                                        {
+                                            "type": raw_entity,
+                                            "start": min(positions),
+                                            "end": max(positions) + 1,
+                                            "rel_anno1": "0",
+                                            "rel_anno2": None,
+                                        }
+                                    )
                                 else:
                                     # remove relation identifier (e.g. 'kpi_1' becomes 'kpi')
                                     # and map to original entity_type
@@ -214,8 +226,10 @@ class AnnotationMerger:
 
                                         logger.warning("Non Consecutive Annotation Warning")
                                         logger.warning(f"The annotation {raw_entity} appears in non consecutive cells.")
-                                        logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                       f"blob_id={blob_id}, sentence_id={sentence_id}")
+                                        logger.warning(
+                                            f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
+                                            f"blob_id={blob_id}, sentence_id={sentence_id}"
+                                        )
                                         error_count += 1
                                         error_flag = True
 
@@ -226,29 +240,41 @@ class AnnotationMerger:
                                         else:
 
                                             logger.warning("Entity Type Warning")
-                                            logger.warning(f"Found entity type {entity_type} which is currently not "
-                                                           f"supported.")
-                                            logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                           f"blob_id={blob_id}, sentence_id={sentence_id}")
+                                            logger.warning(
+                                                f"Found entity type {entity_type} which is currently not " f"supported."
+                                            )
+                                            logger.warning(
+                                                f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
+                                                f"blob_id={blob_id}, sentence_id={sentence_id}"
+                                            )
                                             error_count += 1
                                             error_flag = True
 
-                                    elif (AnnotationMerger._isnumeric(
-                                            " ".join(map(str, tokens[min(positions):(max(positions) + 1)])), "-., "
-                                            ) != IS_ENTITY_NUMERIC[entity_type]
-                                          and not self.ignore_noncritical_warnings):
+                                    elif (
+                                        AnnotationMerger._isnumeric(
+                                            " ".join(map(str, tokens[min(positions) : (max(positions) + 1)])), "-., "
+                                        )
+                                        != IS_ENTITY_NUMERIC[entity_type]
+                                        and not self.ignore_noncritical_warnings
+                                    ):
 
                                         logger.warning("Entity Value Warning (non-critical)")
                                         if IS_ENTITY_NUMERIC[entity_type]:
-                                            logger.warning(f"Found entity type {entity_type} with value "
-                                                           f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
-                                                           "which is not a numeric value but should be.")
+                                            logger.warning(
+                                                f"Found entity type {entity_type} with value "
+                                                f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
+                                                "which is not a numeric value but should be."
+                                            )
                                         else:
-                                            logger.warning(f"Found entity type {entity_type} with value "
-                                                           f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
-                                                           "which is a numeric value but should not be.")
-                                        logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                       f"blob_id={blob_id}, sentence_id={sentence_id}")
+                                            logger.warning(
+                                                f"Found entity type {entity_type} with value "
+                                                f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
+                                                "which is a numeric value but should not be."
+                                            )
+                                        logger.warning(
+                                            f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
+                                            f"blob_id={blob_id}, sentence_id={sentence_id}"
+                                        )
                                         error_count += 1
                                         error_flag = True
 
@@ -256,17 +282,23 @@ class AnnotationMerger:
 
                                         try:
                                             entities.append(
-                                                {"type": entity_type,
-                                                 "start": min(positions),
-                                                 "end": max(positions) + 1,
-                                                 "rel_anno1": rel_annos[0],
-                                                 "rel_anno2": None if len(rel_annos) == 1 else rel_annos[1]}
+                                                {
+                                                    "type": entity_type,
+                                                    "start": min(positions),
+                                                    "end": max(positions) + 1,
+                                                    "rel_anno1": rel_annos[0],
+                                                    "rel_anno2": None if len(rel_annos) == 1 else rel_annos[1],
+                                                }
                                             )
                                         except IndexError:
                                             logger.warning("No Relation Annotation Warning")
-                                            logger.warning(f"The entity {raw_entity} likely has no relation annotation.")
-                                            logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                           f"blob_id={blob_id}, sentence_id={sentence_id}")
+                                            logger.warning(
+                                                f"The entity {raw_entity} likely has no relation annotation."
+                                            )
+                                            logger.warning(
+                                                f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
+                                                f"blob_id={blob_id}, sentence_id={sentence_id}"
+                                            )
                                             error_count += 1
                                             error_flag = True
 
@@ -280,15 +312,17 @@ class AnnotationMerger:
                                     if i < j and AnnotationMerger._check_entity_link(entities, i, j):
                                         # todo: if statement correct?
                                         # relations.append({"type": "matches", "head": i, "tail": j})
-                                        if entity1['start'] < entity2['start']:
+                                        if entity1["start"] < entity2["start"]:
                                             relations.append({"type": "matches", "head": i, "tail": j})
                                         else:
                                             relations.append({"type": "matches", "head": j, "tail": i})
                                 except RelationError as err:
                                     logger.warning("Relation Not Allowed Warning")
                                     logger.warning(err.message)
-                                    logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                   f"blob_id={blob_id}, sentence_id={sentence_id}")
+                                    logger.warning(
+                                        f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
+                                        f"blob_id={blob_id}, sentence_id={sentence_id}"
+                                    )
                                     # logger.warning("Please fix this warning, as it will force mistakes later on.\n")
                                     error_count += 1
                                     error_flag = True
@@ -311,26 +345,29 @@ class AnnotationMerger:
                                     "segment_id": blob_id,
                                     "sentence_id": sentence_id,
                                     "split_type": split_type,
-                                    "document_year": document_year
+                                    "document_year": document_year,
                                 }
                             )
                     else:
                         logger.warning("Nested relation found, skipping sentence.")
-                        logger.warning(f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                       f"blob_id={blob_id}, sentence_id={sentence_id}")
+                        logger.warning(
+                            f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
+                            f"blob_id={blob_id}, sentence_id={sentence_id}"
+                        )
         if self.print_statistics:
             logger.warning("\nGeneral Information:\n")
             logger.warning(f"Documents annotated: {len(np.unique([res['doc_name'] for res in results]))}")
             logger.warning(f"Sentences annotated: {len(results)}")
-            sentences_split = {split_type: [
-                sentence for sentence in results if sentence["split_type"] == split_type
-            ] for split_type in ["train", "valid", "test"]}
+            sentences_split = {
+                split_type: [sentence for sentence in results if sentence["split_type"] == split_type]
+                for split_type in ["train", "valid", "test"]
+            }
             for split_type in ["train", "valid", "test"]:
                 logger.warning(f" - thereof {split_type}: {len(sentences_split[split_type])}")
             # extract all entities
-            all_entities = [entity["type"]
-                            for sentence in [sentence["entities"] for sentence in results]
-                            for entity in sentence]
+            all_entities = [
+                entity["type"] for sentence in [sentence["entities"] for sentence in results] for entity in sentence
+            ]
             logger.warning(f"Entities annotated: {len(all_entities)}")
             # extract all relations
             all_relations = []
@@ -341,6 +378,7 @@ class AnnotationMerger:
                         entity2_type = res["entities"][relation["tail"]]["type"]
                         all_relations.append(" - ".join(sorted([entity1_type, entity2_type])))
             logger.warning(f"Relations annotated: {len(all_relations)}")
+
             logger.warning(f"Annotation warnings: {error_count}")
 
             # Get unique entities and count of each
@@ -354,8 +392,9 @@ class AnnotationMerger:
             (unique_relations, counts) = np.unique(all_relations, return_counts=True)
             count_sort_ind = np.argsort(-counts)
             logger.warning("\nRelation Frequency:\n")
-            for unique_relation, count in zip(unique_relations[count_sort_ind].tolist(),
-                                              counts[count_sort_ind].tolist()):
+            for unique_relation, count in zip(
+                unique_relations[count_sort_ind].tolist(), counts[count_sort_ind].tolist()
+            ):
                 logger.warning(f"{unique_relation}: {count} ({round((count / sum(counts)) * 100, 2)}%)")
             logger.warning("\n")
         return results
@@ -394,31 +433,38 @@ class AnnotationMerger:
                         # pos_in_segment_list & pos_in_sentence_list is required because the
                         # corresponding IDs are not equal to the position of the blob or sentence in its list
                         pos_in_segment_list = corpus_segment_ids.index(annotated_sentence["segment_id"])
-                        segment_sentence_ids = [segment.id_ for segment in
-                                                corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences]
+                        segment_sentence_ids = [
+                            segment.id_
+                            for segment in corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences
+                        ]
                         pos_in_sentence_list = segment_sentence_ids.index(annotated_sentence["sentence_id"])
                         # loop through all entities in the annotated sentence and create Entity class objects for each
-                        entities = [Entity(type_=entity["type"], start=entity["start"], end=entity["end"])
-                                    for entity in annotated_sentence["entities"]]
+                        entities = [
+                            Entity(type_=entity["type"], start=entity["start"], end=entity["end"])
+                            for entity in annotated_sentence["entities"]
+                        ]
                         # add all Entity objects to the sentence in the corpus
                         corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences[
-                            pos_in_sentence_list].entities_anno = entities
+                            pos_in_sentence_list
+                        ].entities_anno = entities
 
                         # add split type
                         corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences[
-                            pos_in_sentence_list].split_type = annotated_sentence["split_type"]
+                            pos_in_sentence_list
+                        ].split_type = annotated_sentence["split_type"]
 
                         if len(annotated_sentence["relations"]) > 0:
 
                             # loop through all relations in the annotated sentence
                             # and create Relation class objects for each
-                            relations = [Relation(type_=relation["type"],
-                                                  head_idx=relation["head"],
-                                                  tail_idx=relation["tail"])
-                                         for relation in annotated_sentence["relations"]]
+                            relations = [
+                                Relation(type_=relation["type"], head_idx=relation["head"], tail_idx=relation["tail"])
+                                for relation in annotated_sentence["relations"]
+                            ]
                             # add all Relation objects to the sentence in the corpus
                             corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences[
-                                pos_in_sentence_list].relations_anno = relations
+                                pos_in_sentence_list
+                            ].relations_anno = relations
 
         if self.filter_for_annotated_docs:
             corpus = AnnotationMerger.filter_annotated_samples(corpus)
@@ -450,7 +496,7 @@ class AnnotationMerger:
                 iobes[ent.start] = f"B-{ent.type_}"
                 iobes[ent.end - 1] = f"E-{ent.type_}"
 
-                iobes[ent.start + 1: ent.end - 1] = [f"I-{ent.type_}"] * (ent.end - ent.start - 2)
+                iobes[ent.start + 1 : ent.end - 1] = [f"I-{ent.type_}"] * (ent.end - ent.start - 2)
 
         sentence.entities_anno_iobes = iobes
         sentence.entities_anno_iobes_ids = [labels.iobes.val2idx[label] for label in iobes]
@@ -472,8 +518,9 @@ class AnnotationMerger:
                     if entity.type_:
                         entity_ids_to_keep.append(idx)
 
-                sentence.entities_anno = [ent for idx, ent in enumerate(sentence.entities_anno)
-                                          if idx in entity_ids_to_keep]
+                sentence.entities_anno = [
+                    ent for idx, ent in enumerate(sentence.entities_anno) if idx in entity_ids_to_keep
+                ]
             if sentence.relations_anno:
                 # correct head_idx and tail_idx due to deleted entities
                 # delete relations which hold a deleted entity
@@ -484,8 +531,9 @@ class AnnotationMerger:
                         relation.tail_idx = entity_ids_to_keep.index(relation.tail_idx)
                         relation_ids_to_keep.append(idx)
 
-                sentence.relations_anno = [rel for idx, rel in enumerate(sentence.relations_anno)
-                                           if idx in relation_ids_to_keep]
+                sentence.relations_anno = [
+                    rel for idx, rel in enumerate(sentence.relations_anno) if idx in relation_ids_to_keep
+                ]
             if not sentence.entities_anno and not sentence.relations_anno:
                 sentence.split_type = None
         return corpus
@@ -497,4 +545,3 @@ class AnnotationMerger:
         labels = Labels.from_corpus(corpus)
         corpus = AnnotationMerger._add_iobes_annotations(corpus, labels)
         return corpus, labels
-
