@@ -8,3 +8,8 @@ Then, download the data from the EDGAR database with the ***download_from_edgar.
 
 Thereafter, kick of the training pipeline by adding the relevant folder to the config under the folder ***/config*** 
 and executing the ***run_train_pipeline.py*** located under ***/scripts***.
+
+# KPI-EDGAR dataset
+
+If you simply want to download the KPI-EDGAR dataset, access the annotations and data from ***/data***. 
+The most up-to-date dataset will always be called ***kpi_edgar.xlsx***.
