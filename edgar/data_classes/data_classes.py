@@ -18,7 +18,7 @@ from lxml.html.clean import Cleaner
 
 
 def create_dataframe_from_json(df: str) -> pd.DataFrame:
-    """ Decode dataframe from serialized json string.
+    """Decode dataframe from serialized json string.
     Safely evaluates multi-index keys (tuple strings) as tuples before converting dict to dataframe.
     """
 
@@ -50,9 +50,9 @@ class Index:
 
     @classmethod
     def from_dict(cls, d: Dict):
-        idx2val = d.get('idx2val')
+        idx2val = d.get("idx2val")
         idx2val = {int(k): v for k, v in idx2val.items()} if idx2val is not None else None
-        return cls(idx2val=idx2val, val2idx=d.get('val2idx'))
+        return cls(idx2val=idx2val, val2idx=d.get("val2idx"))
 
     def to_dict(self) -> Dict:
         return self.__dict__
@@ -68,36 +68,52 @@ class Labels:
     def iobes(self):
         if self._iobes is not None:
             return self._iobes
-        iobes = ['O']
-        for ent_type in [t for t in self.entities.idx2val.values() if not t == 'None']:
-            iobes.extend([f'{prefix}-{ent_type}' for prefix in 'BIES'])
+        iobes = ["O"]
+        for ent_type in [t for t in self.entities.idx2val.values() if not t == "None"]:
+            iobes.extend([f"{prefix}-{ent_type}" for prefix in "BIES"])
         self._iobes = Index.from_values(iobes)
         return self._iobes
 
     @classmethod
     def from_corpus(cls, corpus: Corpus):
-        entities = ['None'] + sorted({entity.type_
-                                      for document in corpus
-                                      for segment in document if isinstance(segment, Paragraph)
-                                      for sentence in segment if sentence.entities_anno
-                                      for entity in sentence.entities_anno})
-        relations = sorted({relation.type_
-                            for document in corpus
-                            for segment in document if isinstance(segment, Paragraph)
-                            for sentence in segment if sentence.relations_anno
-                            for relation in sentence.relations_anno})
+        entities = ["None"] + sorted(
+            {
+                entity.type_
+                for document in corpus
+                for segment in document
+                if isinstance(segment, Paragraph)
+                for sentence in segment
+                if sentence.entities_anno
+                for entity in sentence.entities_anno
+            }
+        )
+        relations = sorted(
+            {
+                relation.type_
+                for document in corpus
+                for segment in document
+                if isinstance(segment, Paragraph)
+                for sentence in segment
+                if sentence.relations_anno
+                for relation in sentence.relations_anno
+            }
+        )
         return cls(entities=Index.from_values(entities), relations=Index.from_values(relations))
 
     @classmethod
     def from_dict(cls, d: Dict):
-        return cls(entities=Index.from_dict(d.get('entities', {})),
-                   relations=Index.from_dict(d.get('relations', {})),
-                   _iobes=Index.from_dict(d.get('_iobes', {})))
+        return cls(
+            entities=Index.from_dict(d.get("entities", {})),
+            relations=Index.from_dict(d.get("relations", {})),
+            _iobes=Index.from_dict(d.get("_iobes", {})),
+        )
 
     def to_dict(self) -> Dict:
-        return {'entities': self.entities.to_dict() if self.entities else None,
-                'relations': self.relations.to_dict() if self.relations else None,
-                '_iobes': self._iobes.to_dict() if self._iobes else None}
+        return {
+            "entities": self.entities.to_dict() if self.entities else None,
+            "relations": self.relations.to_dict() if self.relations else None,
+            "_iobes": self._iobes.to_dict() if self._iobes else None,
+        }
 
 
 @dataclass
@@ -143,25 +159,27 @@ class Cell:
 
     def get_row_headline(self, cells: List[Cell]) -> Optional[List[Cell]]:
         if self._row_headline is None:
-            self._row_headline = [cell for cell in cells
-                                  if cell.row == self.row and cell.is_row_headline and cell.col < self.col]
+            self._row_headline = [
+                cell for cell in cells if cell.row == self.row and cell.is_row_headline and cell.col < self.col
+            ]
         return self._row_headline
 
     def get_col_headline(self, cells: List[Cell]) -> Optional[List[Cell]]:
         if self._col_headline is None:
-            self._col_headline = [cell for cell in cells
-                                  if cell.col == self.col and cell.is_col_headline and cell.row < self.row]
+            self._col_headline = [
+                cell for cell in cells if cell.col == self.col and cell.is_col_headline and cell.row < self.row
+            ]
         return self._col_headline
 
     @classmethod
     def from_dict(cls, d: Dict):
-        words = d.get('words')
-        d['words'] = [Word.from_dict({**{'id_': id_}, **word}) for id_, word in enumerate(words)] if words else []
+        words = d.get("words")
+        d["words"] = [Word.from_dict({**{"id_": id_}, **word}) for id_, word in enumerate(words)] if words else []
         return cls(**d)
 
     def to_dict(self) -> Dict:
         d = self.__dict__
-        d['words'] = [word.to_dict() for word in d['words']]
+        d["words"] = [word.to_dict() for word in d["words"]]
         return d
 
 
@@ -177,11 +195,11 @@ class Entity:
 
     def get_value(self, words: List[Word]) -> str:
         if self._value is None:
-            self._value = ' '.join([t.value for t in words[self.start:self.end]])
+            self._value = " ".join([t.value for t in words[self.start : self.end]])
         return self._value
 
     def get_words(self, words: List[Word]) -> List[Word]:
-        return words[self.start:self.end]
+        return words[self.start : self.end]
 
     @property
     def span(self):
@@ -208,14 +226,17 @@ class Relation:
 
     def __eq__(self, other):
         if self.head_entity is None or self.tail_entity is None:
-            raise ValueError('Call relation.get_entities(entities) first, '
-                             'to set self.head_entity and self.tail_entity.')
+            raise ValueError(
+                "Call relation.get_entities(entities) first, " "to set self.head_entity and self.tail_entity."
+            )
         if isinstance(other, Relation):
-            return (self.type_ == other.type_
-                    and self.head_entity.span == other.head_entity.span
-                    and self.tail_entity.span == other.tail_entity.span
-                    and self.head_entity.type_ == other.head_entity.type_
-                    and self.tail_entity.type_ == other.tail_entity.type_)
+            return (
+                self.type_ == other.type_
+                and self.head_entity.span == other.head_entity.span
+                and self.tail_entity.span == other.tail_entity.span
+                and self.head_entity.type_ == other.head_entity.type_
+                and self.tail_entity.type_ == other.tail_entity.type_
+            )
         return False
 
     def get_entities(self, entities: List[Entity]) -> Tuple[Entity, Entity]:
@@ -239,11 +260,11 @@ class Relation:
 
     @classmethod
     def from_dict(cls, d: Dict):
-        head_entity = d.get('head_entity', None)
-        d['head_entity'] = Entity.from_dict(head_entity) if head_entity is not None else None
+        head_entity = d.get("head_entity", None)
+        d["head_entity"] = Entity.from_dict(head_entity) if head_entity is not None else None
 
-        tail_entity = d.get('tail_entity', None)
-        d['tail_entity'] = Entity.from_dict(tail_entity) if tail_entity is not None else None
+        tail_entity = d.get("tail_entity", None)
+        d["tail_entity"] = Entity.from_dict(tail_entity) if tail_entity is not None else None
         if "used_in_partial_type_metric" in d:
             del d["used_in_partial_type_metric"]
         if "used_in_strict_metric" in d:
@@ -256,9 +277,13 @@ class Relation:
 
     def to_dict(self) -> Dict:
         d = self.__dict__
-        return {**d,
-                **{'head_entity': self.head_entity.to_dict() if self.head_entity is not None else None,
-                   'tail_entity': self.tail_entity.to_dict() if self.tail_entity is not None else None}}
+        return {
+            **d,
+            **{
+                "head_entity": self.head_entity.to_dict() if self.head_entity is not None else None,
+                "tail_entity": self.tail_entity.to_dict() if self.tail_entity is not None else None,
+            },
+        }
 
 
 @dataclass
@@ -282,11 +307,13 @@ class Sentence:
     # entity annotations iobes format
     entities_anno_iobes: Optional[List[str]] = None
     entities_anno_iobes_ids: Optional[Union[List[int], Tensor]] = None
-    #
+
     # entity annotations
     entities_anno: Optional[List[Entity]] = None
+    entities_anno_secondary: Optional[List[Entity]] = None
     # relation annotations
     relations_anno: Optional[List[Relation]] = None
+    relations_anno_secondary: Optional[List[Relation]] = None
     # entity predictions
     entities_pred: Optional[List[Entity]] = None
     # relation predictions
@@ -333,34 +360,45 @@ class Sentence:
         d["words"] = [Word.from_dict(word) for word in words] if words else None
 
         edgar_entities = d.get("edgar_entities")
-        d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if edgar_entities \
-            else None
+        d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if edgar_entities else None
 
-        entities_anno = d.get('entities_anno', None)
-        d['entities_anno'] = [Entity.from_dict(entity)
-                              for entity in entities_anno] if entities_anno is not None else None
+        entities_anno = d.get("entities_anno", None)
+        d["entities_anno"] = (
+            [Entity.from_dict(entity) for entity in entities_anno] if entities_anno is not None else None
+        )
 
-        entities_pred = d.get('entities_pred', None)
-        d['entities_pred'] = [Entity.from_dict(entity)
-                              for entity in entities_pred] if entities_pred is not None else None
+        entities_pred = d.get("entities_pred", None)
+        d["entities_pred"] = (
+            [Entity.from_dict(entity) for entity in entities_pred] if entities_pred is not None else None
+        )
 
-        relations_anno = d.get('relations_anno', None)
-        d['relations_anno'] = [Relation.from_dict(relation)
-                               for relation in relations_anno] if relations_anno is not None else None
+        relations_anno = d.get("relations_anno", None)
+        d["relations_anno"] = (
+            [Relation.from_dict(relation) for relation in relations_anno] if relations_anno is not None else None
+        )
 
-        relations_pred = d.get('relations_pred', None)
-        d['relations_pred'] = [Relation.from_dict(relation)
-                               for relation in relations_pred] if relations_pred is not None else None
+        relations_pred = d.get("relations_pred", None)
+        d["relations_pred"] = (
+            [Relation.from_dict(relation) for relation in relations_pred] if relations_pred is not None else None
+        )
         return cls(**d)
 
     def to_dict(self) -> Dict:
         d = self.__dict__
         d["words"] = [word.to_dict() for word in d["words"]] if self.words else None
         d["edgar_entities"] = [entity.to_dict() for entity in self.edgar_entities] if self.edgar_entities else None
-        d['entities_anno'] = [entity.to_dict() for entity in d['entities_anno']] if self.entities_anno is not None else None
-        d['entities_pred'] = [entity.to_dict() for entity in d['entities_pred']] if self.entities_pred is not None else None
-        d['relations_anno'] = [entity.to_dict() for entity in d['relations_anno']] if self.relations_anno is not None else None
-        d['relations_pred'] = [entity.to_dict() for entity in d['relations_pred']] if self.relations_pred is not None else None
+        d["entities_anno"] = (
+            [entity.to_dict() for entity in d["entities_anno"]] if self.entities_anno is not None else None
+        )
+        d["entities_pred"] = (
+            [entity.to_dict() for entity in d["entities_pred"]] if self.entities_pred is not None else None
+        )
+        d["relations_anno"] = (
+            [entity.to_dict() for entity in d["relations_anno"]] if self.relations_anno is not None else None
+        )
+        d["relations_pred"] = (
+            [entity.to_dict() for entity in d["relations_pred"]] if self.relations_pred is not None else None
+        )
         return d
 
 
@@ -430,8 +468,7 @@ class Paragraph(Segment):
         d["sentences"] = [Sentence.from_dict(sentence) for sentence in sentences] if sentences else []
         d["textblock_entity"] = EdgarEntity.from_dict(d["textblock_entity"]) if d["textblock_entity"] else None
         edgar_entities = d.get("edgar_entities")
-        d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if edgar_entities \
-            else None
+        d["edgar_entities"] = [EdgarEntity.from_dict(entity) for entity in edgar_entities] if edgar_entities else None
         return cls(**d)
 
     def to_dict(self) -> Dict:
@@ -464,10 +501,10 @@ class Table(Segment):
         return self._df
 
     def show(self):
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.width', 1000)
-        pd.set_option('display.max_colwidth', 1000)
+        pd.set_option("display.max_rows", None)
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.width", 1000)
+        pd.set_option("display.max_colwidth", 1000)
         print(self.df)
 
     @property
@@ -492,15 +529,15 @@ class Table(Segment):
 
     @classmethod
     def from_dict(cls, d: Dict):
-        cells = d.get('cells')
-        d['cells'] = [Cell.from_dict(cell) for cell in cells] if cells else []
-        d['df'] = create_dataframe_from_json(d['df'])
+        cells = d.get("cells")
+        d["cells"] = [Cell.from_dict(cell) for cell in cells] if cells else []
+        d["df"] = create_dataframe_from_json(d["df"])
         return cls(**d)
 
     def to_dict(self) -> Dict:
         d = self.__dict__
-        d['cells'] = [cell.to_dict() for cell in d['cells']]
-        d['df'] = d['df'].to_json()
+        d["cells"] = [cell.to_dict() for cell in d["cells"]]
+        d["df"] = d["df"].to_json()
         return d
 
     @staticmethod
@@ -508,9 +545,9 @@ class Table(Segment):
 
         for node in root:
 
-            text = ' '.join(node.text.split()) if node.text else None
+            text = " ".join(node.text.split()) if node.text else None
             if text:
-            # if node.text:
+                # if node.text:
                 # prefix = ' '  # node.text[0]
                 # try:
                 #     first_stripped_char = node.text.lstrip()[0]
@@ -530,20 +567,24 @@ class Table(Segment):
                 #     suffix = ''
 
                 # text = ' '.join(node.text.split())
-                out.append({'value': text,
-                            # 'prefix': prefix,
-                            # 'suffix': suffix,
-                            'info': []})
+                out.append(
+                    {
+                        "value": text,
+                        # 'prefix': prefix,
+                        # 'suffix': suffix,
+                        "info": [],
+                    }
+                )
 
             out = Table.extract_text_recursively(node, out, xbrl_tags)
 
             if node.tag in xbrl_tags and len(out) > 0:
                 info = dict(node.items())
-                out[-1]['info'].append(info)
+                out[-1]["info"].append(info)
 
-            tail = ' '.join(node.tail.split()) if node.tail else None
+            tail = " ".join(node.tail.split()) if node.tail else None
             if tail:
-            # if node.tail:
+                # if node.tail:
                 # prefix = ' '  # node.tail[0]
                 # try:
                 #     first_stripped_char = node.tail.lstrip()[0]
@@ -563,10 +604,14 @@ class Table(Segment):
                 #     suffix = ''
 
                 # tail = ' '.join(node.tail.split())
-                out.append({'value': tail,
-                            # 'prefix': prefix,
-                            # 'suffix': suffix,
-                            'info': []})
+                out.append(
+                    {
+                        "value": tail,
+                        # 'prefix': prefix,
+                        # 'suffix': suffix,
+                        "info": [],
+                    }
+                )
 
         return out
 
@@ -575,7 +620,7 @@ class Table(Segment):
         rowspans = []  # track pending rowspans
         colcount = 0  # first scan, see how many columns we need
         for row_id, row in enumerate(rows):
-            cells = row.xpath('./td | ./th')
+            cells = row.xpath("./td | ./th")
             # count columns (including spanned).
             # add active row_spans from preceding rows
             # we *ignore* the colspan value on the last cell, to prevent
@@ -584,10 +629,10 @@ class Table(Segment):
             # a colspan of 0 means “fill until the end” but can really only apply
             # to the last cell; ignore it elsewhere.
             colcount = max(
-                colcount,
-                sum(int(cell.get('colspan', 1)) or 1 for cell in cells[:-1]) + len(cells[-1:]) + len(rowspans))
+                colcount, sum(int(cell.get("colspan", 1)) or 1 for cell in cells[:-1]) + len(cells[-1:]) + len(rowspans)
+            )
             # update rowspan bookkeeping; 0 is a span to the bottom.
-            rowspans += [int(cell.get('rowspan', 1)) or len(rows) - row_id for cell in cells]
+            rowspans += [int(cell.get("rowspan", 1)) or len(rows) - row_id for cell in cells]
             rowspans = [span - 1 for span in rowspans if span > 1]
 
         return colcount
@@ -595,18 +640,17 @@ class Table(Segment):
     @classmethod
     def from_html(cls, table_tag: lxml.html.HtmlElement):
 
-        rows = table_tag.xpath('./tr')
+        rows = table_tag.xpath("./tr")
         num_rows = len(rows)
         num_cols = Table._get_num_columns(rows)
 
-        table_2d = [[{'value': None,
-                      'words': []}] * num_cols for _ in range(num_rows)]
+        table_2d = [[{"value": None, "words": []}] * num_cols for _ in range(num_rows)]
 
         # fill matrix from row data
         rowspans = {}  # track pending rowspans, column number mapping to count
         for row, row_elem in enumerate(rows):
             span_offset = 0  # how many columns are skipped due to row and colspans
-            for col, cell in enumerate(row_elem.xpath('./td | ./th')):
+            for col, cell in enumerate(row_elem.xpath("./td | ./th")):
                 # adjust for preceding row and colspans
                 col += span_offset
                 while rowspans.get(col, 0):
@@ -614,20 +658,19 @@ class Table(Segment):
                     col += 1
 
                 # fill table data
-                rowspan = rowspans[col] = int(cell.get('rowspan', 1)) or num_rows - row
-                colspan = int(cell.get('colspan', 1)) or num_cols - col
+                rowspan = rowspans[col] = int(cell.get("rowspan", 1)) or num_rows - row
+                colspan = int(cell.get("colspan", 1)) or num_cols - col
                 # next column is offset by the colspan
                 span_offset += colspan - 1
 
-                value = ' '.join(cell.text_content().split())
+                value = " ".join(cell.text_content().split())
                 value = value if value else None
 
-                words = Table.extract_text_recursively(root=cell, out=[], xbrl_tags=['nonfraction'])
+                words = Table.extract_text_recursively(root=cell, out=[], xbrl_tags=["nonfraction"])
 
                 for drow, dcol in product(range(rowspan), range(colspan)):
                     try:
-                        table_2d[row + drow][col + dcol] = {'value': value,
-                                                            'words': words}
+                        table_2d[row + drow][col + dcol] = {"value": value, "words": words}
 
                         rowspans[col + dcol] = rowspan
                     except IndexError:
@@ -641,8 +684,8 @@ class Table(Segment):
         col_ids_to_keep = {0}
         for row_id, row in enumerate(table_2d):
             for col_id, cell_ in enumerate(row):
-                for word in cell_['words']:
-                    if word['info']:
+                for word in cell_["words"]:
+                    if word["info"]:
                         col_ids_to_keep.add(col_id)
                         break
 
@@ -655,14 +698,20 @@ class Table(Segment):
                     prev_col_id = cells[-1].col if cells else -1
 
                     new_col_id = prev_col_id + 1 if prev_row_id == row_id else 0
-                    cells.append(Cell.from_dict({'id_': cell_id,
-                                                 'row': row_id,
-                                                 'col': new_col_id,
-                                                 'value': cell_['value'],
-                                                 'words': cell_['words']}))
+                    cells.append(
+                        Cell.from_dict(
+                            {
+                                "id_": cell_id,
+                                "row": row_id,
+                                "col": new_col_id,
+                                "value": cell_["value"],
+                                "words": cell_["words"],
+                            }
+                        )
+                    )
                     cell_id += 1
 
-        return cls(cells=cells, tag='table', id_=0, value=html.unescape(lh.tostring(table_tag).decode()))
+        return cls(cells=cells, tag="table", id_=0, value=html.unescape(lh.tostring(table_tag).decode()))
 
 
 @dataclass
@@ -788,45 +837,47 @@ class Corpus:
 def main():
     from rich import print as pprint
 
-    path = '/scratch/data/sec-edgar/tesla_xbrl/'
-    file_name = 'tsla-10k_20191231.htm'
-    file = f'{path}{file_name}'
+    path = "/scratch/data/sec-edgar/tesla_xbrl/"
+    file_name = "tsla-10k_20191231.htm"
+    file = f"{path}{file_name}"
 
-    with open(file, 'r', encoding='utf-8') as fp:
+    with open(file, "r", encoding="utf-8") as fp:
         html_text = fp.read()
 
     html_text = html.unescape(html_text)
     html_text = unicodedata.normalize("NFKC", html_text)
 
-    cleaner = Cleaner(scripts=False,
-                      javascript=False,
-                      comments=False,
-                      style=True,
-                      inline_style=True,
-                      links=False,
-                      meta=False,
-                      page_structure=False,
-                      processing_instructions=False,
-                      embedded=False,
-                      frames=False,
-                      forms=False,
-                      annoying_tags=False,
-                      remove_tags=None,
-                      allow_tags=None,
-                      kill_tags=None,
-                      remove_unknown_tags=False,
-                      safe_attrs_only=False,
-                      add_nofollow=False,
-                      host_whitelist=(),
-                      whitelist_tags={'iframe', 'embed'})
+    cleaner = Cleaner(
+        scripts=False,
+        javascript=False,
+        comments=False,
+        style=True,
+        inline_style=True,
+        links=False,
+        meta=False,
+        page_structure=False,
+        processing_instructions=False,
+        embedded=False,
+        frames=False,
+        forms=False,
+        annoying_tags=False,
+        remove_tags=None,
+        allow_tags=None,
+        kill_tags=None,
+        remove_unknown_tags=False,
+        safe_attrs_only=False,
+        add_nofollow=False,
+        host_whitelist=(),
+        whitelist_tags={"iframe", "embed"},
+    )
 
     html_text = cleaner.clean_html(html_text.encode()).decode()
 
     tree = lh.fromstring(html_text)
 
-    tables = tree.xpath('//table')
+    tables = tree.xpath("//table")
 
-    for tab in tables[48: 52]:
+    for tab in tables[48:52]:
 
         tab_str = lh.tostring(tab, encoding=str)
 
@@ -868,7 +919,7 @@ def recursive():
 
     cell = lh.fromstring(bla)
     l = []
-    out = extract_text_recursively(cell, l, ['nonfraction'])
+    out = extract_text_recursively(cell, l, ["nonfraction"])
     pprint(out)
 
     # text, entities = iter_elem1(cell, text='', entities=[])
@@ -879,20 +930,18 @@ def recursive():
 def iter_elem1(node, text: str, entities: List):
 
     start_entity = len(text)
-    text += ' '.join(node.text.split()) if node.text else ''
+    text += " ".join(node.text.split()) if node.text else ""
 
     children = node.getchildren()
     if children:
         for child in children:
             text, entities = iter_elem1(child, text, entities)
 
-    if node.tag == 'nonfraction':
+    if node.tag == "nonfraction":
         info = dict(node.items())
-        entities.append({'info': info,
-                         'start': start_entity,
-                         'end': len(text)})
+        entities.append({"info": info, "start": start_entity, "end": len(text)})
 
-    text += ' '.join(node.tail.split()) if node.tail else ''
+    text += " ".join(node.tail.split()) if node.tail else ""
 
     return text, entities
 
@@ -901,47 +950,43 @@ def extract_text_recursively(root: lxml.html.HtmlElement, out: List, xbrl_tags: 
 
     for node in root:
 
-        text = ' '.join(node.text.split()) if node.text else None
+        text = " ".join(node.text.split()) if node.text else None
         if text:
-            out.append({'text': text,
-                        'info': []})
+            out.append({"text": text, "info": []})
 
         out = extract_text_recursively(node, out, xbrl_tags)
 
         if node.tag in xbrl_tags:
             info = dict(node.items())
-            out[-1]['info'].append(info)
+            out[-1]["info"].append(info)
 
-        tail = ' '.join(node.tail.split()) if node.tail else None
+        tail = " ".join(node.tail.split()) if node.tail else None
         if tail:
-            out.append({'text': tail,
-                        'info': []})
+            out.append({"text": tail, "info": []})
 
     return out
 
 
 def iter_elem(node, l):
-    text = ' '.join(node.text.split()) if node.text else None
+    text = " ".join(node.text.split()) if node.text else None
     if text:
-        l.append({'text': text,
-                  'info': []})
+        l.append({"text": text, "info": []})
 
     children = node.getchildren()
     if children:
         for child in children:
             iter_elem(child, l)
 
-    if node.tag == 'nonfraction':
+    if node.tag == "nonfraction":
         info = dict(node.items())
-        l[-1]['info'].append(info)
+        l[-1]["info"].append(info)
 
-    tail = ' '.join(node.tail.split()) if node.tail else None
+    tail = " ".join(node.tail.split()) if node.tail else None
     if tail:
-        l.append({'text': tail,
-                  'info': []})
+        l.append({"text": tail, "info": []})
 
     return l
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

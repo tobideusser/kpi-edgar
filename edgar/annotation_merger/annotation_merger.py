@@ -35,16 +35,20 @@ class AnnotationMerger:
         ignore_noncritical_warnings: bool = False,
         skip_sentences_with_error: bool = False,
         filter_for_annotated_docs: bool = False,
-        merge_auto_annotations: bool = False,
         label_mapping: Optional[Dict] = None,
+        parse_secondary_annotations: bool = False,
     ):
         self.excel_annotation_path = excel_annotation_path
         self.print_statistics = print_statistics
         self.ignore_noncritical_warnings = ignore_noncritical_warnings
         self.skip_sentences_with_error = skip_sentences_with_error
         self.filter_for_annotated_docs = filter_for_annotated_docs
-        self.merge_auto_annotations = merge_auto_annotations
         self.label_mapping = label_mapping
+        self.parse_secondary_annotations = parse_secondary_annotations
+
+        self.error_count = 0
+        self.error_flag = False
+        self.skip_flag = False
 
     @staticmethod
     def _pairs_in_allowed_relations(entity_types: List) -> bool:
@@ -129,6 +133,190 @@ class AnnotationMerger:
             #          or kpi_1 to davon_2_1
             return False
 
+    def _parse_entities(
+        self,
+        raw_annotations: List[str],
+        tokens: List[str],
+        sheet_name: str,
+        doc_name: str,
+        blob_id: int,
+        sentence_id: int,
+    ) -> List[Dict]:
+
+        raw_entities = sorted(set(raw_annotations))
+
+        # save start and end of entities
+        entities = []
+        for raw_entity in raw_entities:
+            if raw_entity != "":
+                # get all positions of the entity
+                positions = [pos for pos, raw_anno in enumerate(raw_annotations) if raw_anno == raw_entity]
+
+                if raw_entity == "false_positive":
+                    entities.append(
+                        {
+                            "type": raw_entity,
+                            "start": min(positions),
+                            "end": max(positions) + 1,
+                            "rel_anno1": "0",
+                            "rel_anno2": None,
+                        }
+                    )
+                else:
+                    # remove relation identifier (e.g. 'kpi_1' becomes 'kpi')
+                    # and map to original entity_type
+                    entity_splitted = raw_entity.split("_")
+                    rel_annos = [rel_anno for rel_anno in entity_splitted if rel_anno.isnumeric()]
+                    entity_type = "_".join([et for et in entity_splitted if not et.isnumeric()])
+
+                    if sorted(positions) != list(range(min(positions), max(positions) + 1)):
+
+                        logger.warning("Non Consecutive Annotation Warning")
+                        logger.warning(f"The annotation {raw_entity} appears in non consecutive cells.")
+                        logger.warning(
+                            f" Location: sheet_name={sheet_name}, doc_name={doc_name}, "
+                            f"blob_id={blob_id}, sentence_id={sentence_id}"
+                        )
+                        self.error_count += 1
+                        self.error_flag = True
+
+                    elif entity_type not in ALLOWED_ENTITIES:
+
+                        if entity_type == "delete":
+                            self.skip_flag = True
+                        else:
+
+                            logger.warning("Entity Type Warning")
+                            logger.warning(f"Found entity type {entity_type} which is currently not " f"supported.")
+                            logger.warning(
+                                f" Location: sheet_name={sheet_name}, doc_name={doc_name}, "
+                                f"blob_id={blob_id}, sentence_id={sentence_id}"
+                            )
+                            self.error_count += 1
+                            self.error_flag = True
+
+                    elif (
+                        AnnotationMerger._isnumeric(
+                            " ".join(map(str, tokens[min(positions) : (max(positions) + 1)])), "-., "
+                        )
+                        != IS_ENTITY_NUMERIC[entity_type]
+                        and not self.ignore_noncritical_warnings
+                    ):
+
+                        logger.warning("Entity Value Warning (non-critical)")
+                        if IS_ENTITY_NUMERIC[entity_type]:
+                            logger.warning(
+                                f"Found entity type {entity_type} with value "
+                                f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
+                                "which is not a numeric value but should be."
+                            )
+                        else:
+                            logger.warning(
+                                f"Found entity type {entity_type} with value "
+                                f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
+                                "which is a numeric value but should not be."
+                            )
+                        logger.warning(
+                            f" Location: sheet_name={sheet_name}, doc_name={doc_name}, "
+                            f"blob_id={blob_id}, sentence_id={sentence_id}"
+                        )
+                        self.error_count += 1
+                        self.error_flag = True
+
+                    else:
+
+                        try:
+                            entities.append(
+                                {
+                                    "type": entity_type,
+                                    "start": min(positions),
+                                    "end": max(positions) + 1,
+                                    "rel_anno1": rel_annos[0],
+                                    "rel_anno2": None if len(rel_annos) == 1 else rel_annos[1],
+                                }
+                            )
+                        except IndexError:
+                            logger.warning("No Relation Annotation Warning")
+                            logger.warning(f"The entity {raw_entity} likely has no relation annotation.")
+                            logger.warning(
+                                f" Location: sheet_name={sheet_name}, doc_name={doc_name}, "
+                                f"blob_id={blob_id}, sentence_id={sentence_id}"
+                            )
+                            self.error_count += 1
+                            self.error_flag = True
+        return entities
+
+    def _parse_relations(
+        self, entities: List[Dict], sheet_name: str, doc_name: str, blob_id: int, sentence_id: int
+    ) -> List[Dict]:
+
+        relations = []
+        for i, entity1 in enumerate(entities):
+            for j, entity2 in enumerate(entities):
+                try:
+                    # reason for i < j:
+                    #   stops relation from appearing twice (and stops linking to itself)
+                    if i < j and self._check_entity_link(entities, i, j):
+                        # todo: if statement correct?
+                        # relations.append({"type": "matches", "head": i, "tail": j})
+                        if entity1["start"] < entity2["start"]:
+                            relations.append({"type": "matches", "head": i, "tail": j})
+                        else:
+                            relations.append({"type": "matches", "head": j, "tail": i})
+                except RelationError as err:
+                    logger.warning("Relation Not Allowed Warning")
+                    logger.warning(err.message)
+                    logger.warning(
+                        f" Location: sheet_name={sheet_name}, doc_name={doc_name}, "
+                        f"blob_id={blob_id}, sentence_id={sentence_id}"
+                    )
+                    # logger.warning("Please fix this warning, as it will force mistakes later on.\n")
+                    self.error_count += 1
+                    self.error_flag = True
+        return relations
+
+    def _print_stats(self, results: List[Dict]):
+        logger.warning("\nGeneral Information:\n")
+        logger.warning(f"Documents annotated: {len(np.unique([res['doc_name'] for res in results]))}")
+        logger.warning(f"Sentences annotated: {len(results)}")
+        sentences_split = {
+            split_type: [sentence for sentence in results if sentence["split_type"] == split_type]
+            for split_type in ["train", "valid", "test"]
+        }
+        for split_type in ["train", "valid", "test"]:
+            logger.warning(f" - thereof {split_type}: {len(sentences_split[split_type])}")
+        # extract all entities
+        all_entities = [
+            entity["type"] for sentence in [sentence["entities"] for sentence in results] for entity in sentence
+        ]
+        logger.warning(f"Entities annotated: {len(all_entities)}")
+        # extract all relations
+        all_relations = []
+        for res in results:
+            if len(res["relations"]) > 0:
+                for relation in res["relations"]:
+                    entity1_type = res["entities"][relation["head"]]["type"]
+                    entity2_type = res["entities"][relation["tail"]]["type"]
+                    all_relations.append(" - ".join(sorted([entity1_type, entity2_type])))
+        logger.warning(f"Relations annotated: {len(all_relations)}")
+
+        logger.warning(f"Annotation warnings: {self.error_count}")
+
+        # Get unique entities and count of each
+        (unique_entities, counts) = np.unique(all_entities, return_counts=True)
+        count_sort_ind = np.argsort(-counts)
+        logger.warning("\nEntity Frequency:\n")
+        for unique_entity, count in zip(unique_entities[count_sort_ind].tolist(), counts[count_sort_ind].tolist()):
+            logger.warning(f"{unique_entity}: {count} ({round((count / sum(counts)) * 100, 2)}%)")
+
+        # Get unique relations and count of each
+        (unique_relations, counts) = np.unique(all_relations, return_counts=True)
+        count_sort_ind = np.argsort(-counts)
+        logger.warning("\nRelation Frequency:\n")
+        for unique_relation, count in zip(unique_relations[count_sort_ind].tolist(), counts[count_sort_ind].tolist()):
+            logger.warning(f"{unique_relation}: {count} ({round((count / sum(counts)) * 100, 2)}%)")
+        logger.warning("\n")
+
     def _read_xl_annotations(self) -> List[Dict]:
         """
         Read annotations from Excel file and return a flattened list of dictionaries.
@@ -160,8 +348,8 @@ class AnnotationMerger:
                 sentences_count = int((sheet.nrows - 1) / 7)
 
                 for sentence_counter in range(sentences_count):
-                    error_flag = False
-                    skip_flag = False
+                    self.error_flag = False
+                    self.skip_flag = False
 
                     # read blob id and sentence id of current sentence
                     blob_id = int(sheet.cell(sentence_counter * 7 + 2, 1).value)
@@ -170,177 +358,87 @@ class AnnotationMerger:
                     # read the actual sentence tokens & raw annotations
                     # todo: str(token)
                     tokens = [str(token) for token in sheet.row_values(sentence_counter * 7 + 4)[1:] if token != ""]
-                    raw_auto_annotations = [
+                    raw_secondary_annotations = [
                         anno for anno in sheet.row_values(sentence_counter * 7 + 5)[1 : (len(tokens) + 1)]
                     ]
-                    raw_man_annotations = [
+                    raw_annotations = [
                         anno for anno in sheet.row_values(sentence_counter * 7 + 6)[1 : (len(tokens) + 1)]
                     ]
 
                     # merge auto annotations and manual annotations
-                    if self.merge_auto_annotations:
-                        raw_annotations = []
-                        for auto_anno, man_anno in zip(raw_auto_annotations, raw_man_annotations):
-                            if man_anno == "":
-                                raw_annotations.append(auto_anno)
-                            elif man_anno == "x":
-                                raw_annotations.append("")
-                            else:
-                                raw_annotations.append(man_anno)
-                    else:
-                        raw_annotations = raw_man_annotations
+                    # if self.merge_auto_annotations:
+                    #     raw_annotations = []
+                    #     for auto_anno, man_anno in zip(raw_auto_annotations, raw_man_annotations):
+                    #         if man_anno == "":
+                    #             raw_annotations.append(auto_anno)
+                    #         elif man_anno == "x":
+                    #             raw_annotations.append("")
+                    #         else:
+                    #             raw_annotations.append(man_anno)
+                    # else:
+                    #     raw_annotations = raw_man_annotations
 
                     # todo: ugly skip of nested davons, fully parse them
                     if len(list(filter(reg_ex.match, raw_annotations))) == 0:
                         # get list of unique entities
-                        # todo: sorted
-                        raw_entities = sorted(set(raw_annotations))
-
-                        # save start and end of entities
-                        entities = []
-                        for raw_entity in raw_entities:
-                            if raw_entity != "":
-                                # get all positions of the entity
-                                positions = [
-                                    pos for pos, raw_anno in enumerate(raw_annotations) if raw_anno == raw_entity
-                                ]
-
-                                if raw_entity == "false_positive":
-                                    entities.append(
-                                        {
-                                            "type": raw_entity,
-                                            "start": min(positions),
-                                            "end": max(positions) + 1,
-                                            "rel_anno1": "0",
-                                            "rel_anno2": None,
-                                        }
-                                    )
-                                else:
-                                    # remove relation identifier (e.g. 'kpi_1' becomes 'kpi')
-                                    # and map to original entity_type
-                                    entity_splitted = raw_entity.split("_")
-                                    rel_annos = [rel_anno for rel_anno in entity_splitted if rel_anno.isnumeric()]
-                                    entity_type = "_".join([et for et in entity_splitted if not et.isnumeric()])
-
-                                    if sorted(positions) != list(range(min(positions), max(positions) + 1)):
-
-                                        logger.warning("Non Consecutive Annotation Warning")
-                                        logger.warning(f"The annotation {raw_entity} appears in non consecutive cells.")
-                                        logger.warning(
-                                            f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                            f"blob_id={blob_id}, sentence_id={sentence_id}"
-                                        )
-                                        error_count += 1
-                                        error_flag = True
-
-                                    elif entity_type not in ALLOWED_ENTITIES:
-
-                                        if entity_type == "delete":
-                                            skip_flag = True
-                                        else:
-
-                                            logger.warning("Entity Type Warning")
-                                            logger.warning(
-                                                f"Found entity type {entity_type} which is currently not " f"supported."
-                                            )
-                                            logger.warning(
-                                                f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                f"blob_id={blob_id}, sentence_id={sentence_id}"
-                                            )
-                                            error_count += 1
-                                            error_flag = True
-
-                                    elif (
-                                        AnnotationMerger._isnumeric(
-                                            " ".join(map(str, tokens[min(positions) : (max(positions) + 1)])), "-., "
-                                        )
-                                        != IS_ENTITY_NUMERIC[entity_type]
-                                        and not self.ignore_noncritical_warnings
-                                    ):
-
-                                        logger.warning("Entity Value Warning (non-critical)")
-                                        if IS_ENTITY_NUMERIC[entity_type]:
-                                            logger.warning(
-                                                f"Found entity type {entity_type} with value "
-                                                f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
-                                                "which is not a numeric value but should be."
-                                            )
-                                        else:
-                                            logger.warning(
-                                                f"Found entity type {entity_type} with value "
-                                                f"'{' '.join(tokens[min(positions):(max(positions) + 1)])}' "
-                                                "which is a numeric value but should not be."
-                                            )
-                                        logger.warning(
-                                            f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                            f"blob_id={blob_id}, sentence_id={sentence_id}"
-                                        )
-                                        error_count += 1
-                                        error_flag = True
-
-                                    else:
-
-                                        try:
-                                            entities.append(
-                                                {
-                                                    "type": entity_type,
-                                                    "start": min(positions),
-                                                    "end": max(positions) + 1,
-                                                    "rel_anno1": rel_annos[0],
-                                                    "rel_anno2": None if len(rel_annos) == 1 else rel_annos[1],
-                                                }
-                                            )
-                                        except IndexError:
-                                            logger.warning("No Relation Annotation Warning")
-                                            logger.warning(
-                                                f"The entity {raw_entity} likely has no relation annotation."
-                                            )
-                                            logger.warning(
-                                                f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                                f"blob_id={blob_id}, sentence_id={sentence_id}"
-                                            )
-                                            error_count += 1
-                                            error_flag = True
+                        entities = self._parse_entities(
+                            raw_annotations=raw_annotations,
+                            tokens=tokens,
+                            blob_id=blob_id,
+                            sentence_id=sentence_id,
+                            sheet_name=sheet.name,
+                            doc_name=doc_name,
+                        )
 
                         # save head & tail of relations
-                        relations = []
-                        for i, entity1 in enumerate(entities):
-                            for j, entity2 in enumerate(entities):
-                                try:
-                                    # reason for i < j:
-                                    #   stops relation from appearing twice (and stops linking to itself)
-                                    if i < j and AnnotationMerger._check_entity_link(entities, i, j):
-                                        # todo: if statement correct?
-                                        # relations.append({"type": "matches", "head": i, "tail": j})
-                                        if entity1["start"] < entity2["start"]:
-                                            relations.append({"type": "matches", "head": i, "tail": j})
-                                        else:
-                                            relations.append({"type": "matches", "head": j, "tail": i})
-                                except RelationError as err:
-                                    logger.warning("Relation Not Allowed Warning")
-                                    logger.warning(err.message)
-                                    logger.warning(
-                                        f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
-                                        f"blob_id={blob_id}, sentence_id={sentence_id}"
-                                    )
-                                    # logger.warning("Please fix this warning, as it will force mistakes later on.\n")
-                                    error_count += 1
-                                    error_flag = True
+                        relations = self._parse_relations(
+                            entities=entities,
+                            sheet_name=sheet.name,
+                            doc_name=doc_name,
+                            blob_id=blob_id,
+                            sentence_id=sentence_id,
+                        )
+
+                        if self.parse_secondary_annotations and set(raw_secondary_annotations) != {""}:
+
+                            secondary_entities = self._parse_entities(
+                                raw_annotations=raw_secondary_annotations,
+                                tokens=tokens,
+                                blob_id=blob_id,
+                                sentence_id=sentence_id,
+                                sheet_name=sheet.name,
+                                doc_name=doc_name,
+                            )
+
+                            secondary_relations = self._parse_relations(
+                                entities=secondary_entities,
+                                sheet_name=sheet.name,
+                                doc_name=doc_name,
+                                blob_id=blob_id,
+                                sentence_id=sentence_id,
+                            )
+
+                        else:
+
+                            secondary_entities = None
+                            secondary_relations = None
 
                         # remove rel_anno from entity dict
                         for entity in entities:
                             del entity["rel_anno1"]
                             del entity["rel_anno2"]
 
-                        if error_flag and self.skip_sentences_with_error:
+                        if self.error_flag and self.skip_sentences_with_error:
                             logger.warning("Error found, sentence was skipped.\n")
-                        elif not skip_flag:
+                        elif not self.skip_flag:
                             # add the extracted information as a dict to the result list
                             results.append(
                                 {
                                     "tokens": tokens,
                                     "entities": entities,
                                     "relations": relations,
+                                    "secondary_entities": secondary_entities,
+                                    "secondary_relations": secondary_relations,
                                     "doc_name": doc_name,
                                     "segment_id": blob_id,
                                     "sentence_id": sentence_id,
@@ -354,49 +452,10 @@ class AnnotationMerger:
                             f" Location: sheet_name={sheet.name}, doc_name={doc_name}, "
                             f"blob_id={blob_id}, sentence_id={sentence_id}"
                         )
+
         if self.print_statistics:
-            logger.warning("\nGeneral Information:\n")
-            logger.warning(f"Documents annotated: {len(np.unique([res['doc_name'] for res in results]))}")
-            logger.warning(f"Sentences annotated: {len(results)}")
-            sentences_split = {
-                split_type: [sentence for sentence in results if sentence["split_type"] == split_type]
-                for split_type in ["train", "valid", "test"]
-            }
-            for split_type in ["train", "valid", "test"]:
-                logger.warning(f" - thereof {split_type}: {len(sentences_split[split_type])}")
-            # extract all entities
-            all_entities = [
-                entity["type"] for sentence in [sentence["entities"] for sentence in results] for entity in sentence
-            ]
-            logger.warning(f"Entities annotated: {len(all_entities)}")
-            # extract all relations
-            all_relations = []
-            for res in results:
-                if len(res["relations"]) > 0:
-                    for relation in res["relations"]:
-                        entity1_type = res["entities"][relation["head"]]["type"]
-                        entity2_type = res["entities"][relation["tail"]]["type"]
-                        all_relations.append(" - ".join(sorted([entity1_type, entity2_type])))
-            logger.warning(f"Relations annotated: {len(all_relations)}")
+            self._print_stats(results)
 
-            logger.warning(f"Annotation warnings: {error_count}")
-
-            # Get unique entities and count of each
-            (unique_entities, counts) = np.unique(all_entities, return_counts=True)
-            count_sort_ind = np.argsort(-counts)
-            logger.warning("\nEntity Frequency:\n")
-            for unique_entity, count in zip(unique_entities[count_sort_ind].tolist(), counts[count_sort_ind].tolist()):
-                logger.warning(f"{unique_entity}: {count} ({round((count / sum(counts)) * 100, 2)}%)")
-
-            # Get unique relations and count of each
-            (unique_relations, counts) = np.unique(all_relations, return_counts=True)
-            count_sort_ind = np.argsort(-counts)
-            logger.warning("\nRelation Frequency:\n")
-            for unique_relation, count in zip(
-                unique_relations[count_sort_ind].tolist(), counts[count_sort_ind].tolist()
-            ):
-                logger.warning(f"{unique_relation}: {count} ({round((count / sum(counts)) * 100, 2)}%)")
-            logger.warning("\n")
         return results
 
     def _merge_xl_to_corpus(self, corpus: Corpus) -> Corpus:

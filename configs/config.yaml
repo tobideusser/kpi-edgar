@@ -1,5 +1,5 @@
 # Base directory to store all task outputs
-base_dir: "/scratch/data/edgar/icmla/v1"
+base_dir: "/scratch/data/edgar/icmla/kappa"
 
 ################
 # DATA PARSING #
@@ -36,11 +36,11 @@ DataTagging:
 #####################
 
 AnnotationMerging:
-  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations_v3.xlsx"
+  excel_annotation_file: "/scratch/projects/edgar/data/edgar_relation_annotations_v4.xlsx"
   filter_for_annotated_docs: true  # set false for self-training
   ignore_noncritical_warnings: true
   skip_sentences_with_error: true
-  merge_auto_annotations: false
+  parse_secondary_annotations: true
   label_mapping:
     kpi: 'kpi'
     kpi_coref: 'kpi_coref'
