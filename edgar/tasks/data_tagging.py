@@ -15,10 +15,7 @@ class DataTagging(Task):
 
     publishes = ["corpus_tagged"]
 
-    def __init__(self,
-                 remove_non_currency_sentences: bool = True,
-                 language: str = "en",
-                 train_mode: bool = True):
+    def __init__(self, remove_non_currency_sentences: bool = True, language: str = "en", train_mode: bool = True):
         super().__init__()
 
         # config params

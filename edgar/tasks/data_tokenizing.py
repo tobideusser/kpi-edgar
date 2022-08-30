@@ -14,10 +14,7 @@ class DataTokenizing(Task):
 
     publishes = ["corpus_tokenized"]
 
-    def __init__(self,
-                 remove_tables: bool = False,
-                 language: str = "en",
-                 train_mode: bool = True):
+    def __init__(self, remove_tables: bool = False, language: str = "en", train_mode: bool = True):
         super().__init__()
 
         # config params

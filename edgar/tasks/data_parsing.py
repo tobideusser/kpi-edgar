@@ -14,14 +14,14 @@ class DataParsing(Task):
     publishes = ["corpus_parsed"]
 
     def __init__(
-            self,
-            # data_folder: str,
-            entity_prefixes: List[str],
-            entity_formats: List[str],
-            path_to_data_folders: str,
-            dataset_name: Optional[str] = "EDGAR",
-            debug_size: Optional[int] = None,
-            train_mode: bool = True
+        self,
+        # data_folder: str,
+        entity_prefixes: List[str],
+        entity_formats: List[str],
+        path_to_data_folders: str,
+        dataset_name: Optional[str] = "EDGAR",
+        debug_size: Optional[int] = None,
+        train_mode: bool = True,
     ):
         super().__init__()
 
@@ -42,7 +42,7 @@ class DataParsing(Task):
             entity_formats=self.entity_formats,
             path_to_data_folders=self.path_to_data_folders,
             debug_size=self.debug_size,
-            dataset_name=self.dataset_name
+            dataset_name=self.dataset_name,
         )
         corpus = parser.parse_data_folder()
 

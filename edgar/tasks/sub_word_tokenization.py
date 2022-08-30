@@ -16,13 +16,15 @@ logger = logging.getLogger(__name__)
 
 class SubWordTokenization(Task):
 
-    publishes = ['corpus_tokenized', 'sub_word_tokenizer']
+    publishes = ["corpus_tokenized", "sub_word_tokenizer"]
 
-    def __init__(self,
-                 special_tokens: Optional[Dict] = None,
-                 seed: int = 42,
-                 tokenizer_name: Optional[str] = None,
-                 train_mode: bool = True):
+    def __init__(
+        self,
+        special_tokens: Optional[Dict] = None,
+        seed: int = 42,
+        tokenizer_name: Optional[str] = None,
+        train_mode: bool = True,
+    ):
         super().__init__()
 
         # config params
@@ -37,8 +39,8 @@ class SubWordTokenization(Task):
             self.sub_word_tokenizer.add_special_tokens(self.special_tokens)
 
     def _get_pre_post_special_token_ids(self) -> Tuple[List[int], List[int]]:
-        encoding_with_special_tokens = self.sub_word_tokenizer.encode('1', add_special_tokens=True)
-        encoding_without_special_tokens = self.sub_word_tokenizer.encode('1', add_special_tokens=False)
+        encoding_with_special_tokens = self.sub_word_tokenizer.encode("1", add_special_tokens=True)
+        encoding_without_special_tokens = self.sub_word_tokenizer.encode("1", add_special_tokens=False)
         pre_special_token_ids, post_special_token_ids = [], []
         pre = True
 
@@ -52,9 +54,9 @@ class SubWordTokenization(Task):
         return pre_special_token_ids, post_special_token_ids
 
     @staticmethod
-    def _get_word2token_alignment_mask(word2token_start_indices: List[int],
-                                       num_words: int,
-                                       num_tokens: int) -> List[List[bool]]:
+    def _get_word2token_alignment_mask(
+        word2token_start_indices: List[int], num_words: int, num_tokens: int
+    ) -> List[List[bool]]:
         word2token_alignment_mask = torch.zeros((num_words, num_tokens), dtype=torch.bool)
         for word_id, start in enumerate(word2token_start_indices):
             if word_id < len(word2token_start_indices) - 1:
@@ -65,8 +67,7 @@ class SubWordTokenization(Task):
 
         return word2token_alignment_mask.tolist()
 
-    def _tokenize_corpus(self,
-                         corpus: Corpus) -> Corpus:
+    def _tokenize_corpus(self, corpus: Corpus) -> Corpus:
         pre_special_token_ids, post_special_token_ids = self._get_pre_post_special_token_ids()
 
         for sentence in tqdm(corpus.sentences):
@@ -77,7 +78,8 @@ class SubWordTokenization(Task):
             start_index = len(pre_special_token_ids)
             words = [word.value for word in sentence.words]
             sentence_token_ids: List[List[int]] = self.sub_word_tokenizer.batch_encode_plus(
-                words, add_special_tokens=False).input_ids
+                words, add_special_tokens=False
+            ).input_ids
             for word_token_ids in sentence_token_ids:
                 sentence.token_ids.extend(word_token_ids)
 
@@ -86,9 +88,7 @@ class SubWordTokenization(Task):
                 word2token_end_ids.append(start_index - 1)
 
             sentence.word2token_alignment_mask = self._get_word2token_alignment_mask(
-                word2token_start_ids,
-                num_words=len(sentence.words),
-                num_tokens=len(sentence.token_ids)
+                word2token_start_ids, num_words=len(sentence.words), num_tokens=len(sentence.token_ids)
             )
             sentence.word2token_end_ids = word2token_end_ids
             sentence.word2token_start_ids = word2token_start_ids
@@ -102,28 +102,28 @@ class SubWordTokenization(Task):
         set_seeds()
 
         if isinstance(corpus_tagged, Dict):
-            logger.info('Converting corpus_tagged dict to Corpus object.')
+            logger.info("Converting corpus_tagged dict to Corpus object.")
             corpus = Corpus.from_dict(corpus_tagged)
         else:
             corpus = corpus_tagged
 
-        logger.debug('Sub-word-tokenize corpus and calculate word to token alignment masks...')
+        logger.debug("Sub-word-tokenize corpus and calculate word to token alignment masks...")
         corpus_tokenized = self._tokenize_corpus(corpus)
 
         if self.train_mode:
-            self.save(corpus_tokenized.to_dict(), 'corpus_tokenized', type_='pickle')
-            self.save(self.sub_word_tokenizer, 'sub_word_tokenizer', type_='tokenizer')
+            self.save(corpus_tokenized.to_dict(), "corpus_tokenized", type_="pickle")
+            self.save(self.sub_word_tokenizer, "sub_word_tokenizer", type_="tokenizer")
         else:
             return corpus_tokenized, self.sub_word_tokenizer
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os
     import pickle
-    corpus_pred_path = '/scratch/data/edgar/above200B/AnnotationMerging/000/corpus_tagged.p'
+
+    corpus_pred_path = "/scratch/data/edgar/above200B/AnnotationMerging/000/corpus_tagged.p"
     if os.path.isfile(corpus_pred_path):
-        with open(corpus_pred_path, 'rb') as f:
+        with open(corpus_pred_path, "rb") as f:
             file_load = pickle.load(f)
 
     corpus_predicted = Corpus.from_dict(file_load)
