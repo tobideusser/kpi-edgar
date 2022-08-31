@@ -9,7 +9,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "Tobias Deusser (tobias.deusser@iais.fraunhofer.de)"
-TICKER_FILE = "../data/220120_nasdaq_ticker_above$200B.csv"
+TICKER_FILE = "../data/company_ticker/220120_nasdaq_ticker_above$200B.csv"
 COMPANY_TICKER = [
     "aapl",  # Apple
     "msft",  # Microsoft
@@ -20,7 +20,7 @@ COMPANY_TICKER = [
     "wmt",  # Walmart
     "pfe",  # Pfizer
     "jpm",  # JP Morgan Chase
-    "f"  # Ford
+    "f",  # Ford
 ]
 NUMBER_REPORTS = 20
 PATH = "/cluster/edgar_filings_above$200B"
@@ -44,7 +44,7 @@ def main():
                 start_date=START_DATE,
                 filing_type=FilingType.FILING_10K,
                 count=NUMBER_REPORTS,
-                user_agent=USER_AGENT
+                user_agent=USER_AGENT,
             )
             filing.save(PATH)
         except ValueError:
