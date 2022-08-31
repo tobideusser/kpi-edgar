@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Optional
 
 import numpy as np
 import xlrd
+from sklearn.metrics import cohen_kappa_score
 from tqdm import tqdm
 
 from edgar import ALLOWED_RELATIONS, ALLOWED_ENTITIES, IS_ENTITY_NUMERIC
@@ -275,6 +276,48 @@ class AnnotationMerger:
                     self.error_flag = True
         return relations
 
+    @staticmethod
+    def _calculate_kappa_scores(results: List[Dict]) -> Dict[str, float]:
+        all_raw_first_annotations = []
+        all_raw_second_annotations = []
+        for result in results:
+            if result["secondary_entities"] is not None:
+                all_raw_first_annotations.extend(result["raw_annotations"]["first"])
+                all_raw_second_annotations.extend(result["raw_annotations"]["second"])
+        kappa = {"all": cohen_kappa_score(y1=all_raw_first_annotations, y2=all_raw_second_annotations)}
+
+        only_entities_first_annotations = []
+        only_entities_second_annotations = []
+        for first, second in zip(all_raw_first_annotations, all_raw_second_annotations):
+            if first != "" or second != "":
+                only_entities_first_annotations.append(first)
+                only_entities_second_annotations.append(second)
+
+        kappa["only_entities"] = cohen_kappa_score(
+            y1=only_entities_first_annotations, y2=only_entities_second_annotations
+        )
+
+        all_entity_types_raw = set(only_entities_first_annotations)
+        all_entity_types_raw.remove("")
+        all_entity_types = set()
+        for entity_type in all_entity_types_raw:
+            all_entity_types.add(entity_type.split("_")[0])
+
+        for entity_type in all_entity_types:
+            specific_entity_first_annotations = []
+            specific_entity_second_annotations = []
+            for first_raw, second_raw in zip(only_entities_first_annotations, only_entities_second_annotations):
+                first = "" if first_raw == "" else first_raw.split("_")[0]
+                second = "" if second_raw == "" else second_raw.split("_")[0]
+                if entity_type in [first, second]:
+                    specific_entity_first_annotations.append(first_raw if entity_type == first else "[NOT]")
+                    specific_entity_second_annotations.append(second_raw if entity_type == second else "[NOT]")
+            kappa[entity_type] = cohen_kappa_score(
+                y1=specific_entity_first_annotations, y2=specific_entity_second_annotations
+            )
+
+        return kappa
+
     def _print_stats(self, results: List[Dict]):
         logger.warning("\nGeneral Information:\n")
         logger.warning(f"Documents annotated: {len(np.unique([res['doc_name'] for res in results]))}")
@@ -317,6 +360,12 @@ class AnnotationMerger:
             logger.warning(f"{unique_relation}: {count} ({round((count / sum(counts)) * 100, 2)}%)")
         logger.warning("\n")
 
+        if self.parse_secondary_annotations:
+            kappa_scores = self._calculate_kappa_scores(results=results)
+            logger.warning("\nKappa Scores:\n")
+            for type_, kappa_score in kappa_scores.items():
+                logger.warning(f"{type_}: {round(kappa_score, 4)}")
+
     def _read_xl_annotations(self) -> List[Dict]:
         """
         Read annotations from Excel file and return a flattened list of dictionaries.
@@ -329,7 +378,6 @@ class AnnotationMerger:
 
         logger.info("Extracting tokens, entities, and relations from each sheet...")
         results = []
-        error_count = 0
         for sheet in tqdm(wb.sheets(), desc="Reading XL annotations"):
             if sheet.name not in ["legend", "possible_relations", "findings", "exercise", "solution"]:
                 # doc name is in cell A1
@@ -439,6 +487,7 @@ class AnnotationMerger:
                                     "relations": relations,
                                     "secondary_entities": secondary_entities,
                                     "secondary_relations": secondary_relations,
+                                    "raw_annotations": {"first": raw_annotations, "second": raw_secondary_annotations},
                                     "doc_name": doc_name,
                                     "segment_id": blob_id,
                                     "sentence_id": sentence_id,
@@ -507,6 +556,19 @@ class AnnotationMerger:
                             pos_in_sentence_list
                         ].entities_anno = entities
 
+                        if (
+                            self.parse_secondary_annotations
+                            and annotated_sentence["secondary_entities"] is not None
+                            and len(annotated_sentence["secondary_entities"]) > 0
+                        ):
+                            secondary_entities = [
+                                Entity(type_=entity["type"], start=entity["start"], end=entity["end"])
+                                for entity in annotated_sentence["secondary_entities"]
+                            ]
+                            corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences[
+                                pos_in_sentence_list
+                            ].entities_anno_secondary = secondary_entities
+
                         # add split type
                         corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences[
                             pos_in_sentence_list
@@ -524,6 +586,23 @@ class AnnotationMerger:
                             corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences[
                                 pos_in_sentence_list
                             ].relations_anno = relations
+
+                        if (
+                            self.parse_secondary_annotations
+                            and annotated_sentence["secondary_entities"] is not None
+                            and len(annotated_sentence["secondary_entities"]) > 0
+                        ):
+
+                            # loop through all relations in the annotated sentence
+                            # and create Relation class objects for each
+                            relations = [
+                                Relation(type_=relation["type"], head_idx=relation["head"], tail_idx=relation["tail"])
+                                for relation in annotated_sentence["secondary_relations"]
+                            ]
+                            # add all Relation objects to the sentence in the corpus
+                            corpus.documents[corpus_doc_id].segments[pos_in_segment_list].sentences[
+                                pos_in_sentence_list
+                            ].relations_anno_secondary = relations
 
         if self.filter_for_annotated_docs:
             corpus = AnnotationMerger.filter_annotated_samples(corpus)
