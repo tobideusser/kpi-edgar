@@ -301,14 +301,14 @@ class AnnotationMerger:
         all_entity_types_raw.remove("")
         all_entity_types = set()
         for entity_type in all_entity_types_raw:
-            all_entity_types.add(entity_type.split("_")[0])
+            all_entity_types.add("_".join([s for s in entity_type.split("_") if not s.isnumeric()]))
 
         for entity_type in all_entity_types:
             specific_entity_first_annotations = []
             specific_entity_second_annotations = []
             for first_raw, second_raw in zip(only_entities_first_annotations, only_entities_second_annotations):
-                first = "" if first_raw == "" else first_raw.split("_")[0]
-                second = "" if second_raw == "" else second_raw.split("_")[0]
+                first = "_".join([s for s in first_raw.split("_") if not s.isnumeric()])
+                second = "_".join([s for s in second_raw.split("_") if not s.isnumeric()])
                 if entity_type in [first, second]:
                     specific_entity_first_annotations.append(first_raw if entity_type == first else "[NOT]")
                     specific_entity_second_annotations.append(second_raw if entity_type == second else "[NOT]")
