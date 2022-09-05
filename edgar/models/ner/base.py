@@ -9,8 +9,7 @@ from torch import nn
 
 logger = logging.getLogger(__name__)
 
-NER_DECODER: Dict = {"iobes": "edgar.models.ner.IobesNERDecoder",
-                     "span": "edgar.models.ner.SpanNERDecoder"}
+NER_DECODER: Dict = {"iobes": "edgar.models.ner.IobesNERDecoder", "span": "edgar.models.ner.SpanNERDecoder"}
 
 
 class NERDecoder(nn.Module):
@@ -26,14 +25,11 @@ class NERDecoder(nn.Module):
         raise NotImplementedError
 
     @classmethod
-    def from_config(cls,
-                    type_: str,
-                    *args,
-                    **kwargs) -> NERDecoder:
+    def from_config(cls, type_: str, *args, **kwargs) -> NERDecoder:
         try:
             callable_path = NER_DECODER[type_]
-            parts = callable_path.split('.')
-            module_name = '.'.join(parts[:-1])
+            parts = callable_path.split(".")
+            module_name = ".".join(parts[:-1])
             class_name = parts[-1]
         except KeyError:
             raise KeyError(f'NER Decoder "{type_}" is not implemented.')

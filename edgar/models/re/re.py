@@ -11,21 +11,23 @@ from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
 
 
 class REDecoder(nn.Module):
-    def __init__(self,
-                 entity_dim: int,
-                 labels: Labels,
-                 neg_sampling: int = 100,
-                 use_inbetween_context: bool = True,
-                 context_dim: int = 0,
-                 biaffine: bool = False,
-                 dropout: float = 0.0,
-                 pooling_fn: str = "max",
-                 chunk_size: int = 1000,
-                 threshold: float = 0.5,
-                 loss_weight: float = 1.,
-                 remove_overlapping_relations: bool = True,
-                 filter_impossible_relations: bool = True,
-                 table_to_text_mode: bool = False):
+    def __init__(
+        self,
+        entity_dim: int,
+        labels: Labels,
+        neg_sampling: int = 100,
+        use_inbetween_context: bool = True,
+        context_dim: int = 0,
+        biaffine: bool = False,
+        dropout: float = 0.0,
+        pooling_fn: str = "max",
+        chunk_size: int = 1000,
+        threshold: float = 0.5,
+        loss_weight: float = 1.0,
+        remove_overlapping_relations: bool = True,
+        filter_impossible_relations: bool = True,
+        table_to_text_mode: bool = False,
+    ):
         """Linear Scorer : MLP([ent1, ent2])   +  optionally [pooled_middle_context, bilinear(ent1, ent2)]"""
         super().__init__()
         self.entity_dim = entity_dim
@@ -47,9 +49,9 @@ class REDecoder(nn.Module):
         self.pooling_fn = pooling_fn
 
         if pooling_fn == "rnn_local":
-            self.pooling_layer = PoolingRNNLocal(nn.GRU(
-                context_dim, int(context_dim / 2), bidirectional=True, batch_first=True
-            ))
+            self.pooling_layer = PoolingRNNLocal(
+                nn.GRU(context_dim, int(context_dim / 2), bidirectional=True, batch_first=True)
+            )
         elif pooling_fn == "attention":
             self.pooling_layer = nn.Linear(context_dim, 1)
         else:
@@ -64,10 +66,9 @@ class REDecoder(nn.Module):
         self.biaffine = biaffine
         # Add bilinear term
         if self.biaffine:
-            self.bilinear = nn.Bilinear(self.entity_dim,
-                                        self.entity_dim,
-                                        len(self.labels.relations.idx2val),
-                                        bias=False)
+            self.bilinear = nn.Bilinear(
+                self.entity_dim, self.entity_dim, len(self.labels.relations.idx2val), bias=False
+            )
 
         self.dropout = dropout
         self.drop = nn.Dropout(dropout)
@@ -75,7 +76,7 @@ class REDecoder(nn.Module):
         self.linear = nn.Linear(self.input_dim, len(self.labels.relations.idx2val))
 
     def forward(self, batch: Dict):
-        batch_size, max_n_words, context_dim = batch['word_embeddings'].shape
+        batch_size, max_n_words, context_dim = batch["word_embeddings"].shape
 
         all_pair_ids = []
         all_labels = []
@@ -84,7 +85,7 @@ class REDecoder(nn.Module):
         for b in range(batch_size):
 
             if self.training:
-                entities_anno = {(ent['start'], ent['end']): ent['type_'] for ent in batch["entities_anno"][b]}
+                entities_anno = {(ent["start"], ent["end"]): ent["type_"] for ent in batch["entities_anno"][b]}
                 entities_combined = entities_anno
                 # entities_combined = {**batch["entities_pred"][b], **entities_anno}
             else:
@@ -97,53 +98,52 @@ class REDecoder(nn.Module):
                 # TODO: Note i1 < i2 enforces that entity pairs are only predicted in one direction. This is problematic
                 #  if we have a dataset where relations are not symmetric
                 if self.filter_impossible_relations:
-                    entity_pair_spans = [(span1, span2)
-                                         if span1 <= span2
-                                         else
-                                         (span2, span1)
-                                         for i1, (span1, type1) in enumerate(entities_combined.items())
-                                         for i2, (span2, type2) in enumerate(entities_combined.items())
-                                         if i1 < i2 and {type1, type2} in ALLOWED_RELATIONS]
+                    entity_pair_spans = [
+                        (span1, span2) if span1 <= span2 else (span2, span1)
+                        for i1, (span1, type1) in enumerate(entities_combined.items())
+                        for i2, (span2, type2) in enumerate(entities_combined.items())
+                        if i1 < i2 and {type1, type2} in ALLOWED_RELATIONS
+                    ]
                 else:
-                    entity_pair_spans = [(span1, span2)
-                                         if span1 <= span2
-                                         else
-                                         (span2, span1)
-                                         for i1, (span1, type1) in enumerate(entities_combined.items())
-                                         for i2, (span2, type2) in enumerate(entities_combined.items())
-                                         if i1 < i2]
+                    entity_pair_spans = [
+                        (span1, span2) if span1 <= span2 else (span2, span1)
+                        for i1, (span1, type1) in enumerate(entities_combined.items())
+                        for i2, (span2, type2) in enumerate(entities_combined.items())
+                        if i1 < i2
+                    ]
 
-            # # Filter entity spans AND SAMPLE
-            # gt_spans = [(ent["start"], ent["end"]) for ent in batch["entities_anno"][b]]
-            # # pred_spans = [(ent["start"], ent["end"]) for ent in batch["pred_entities"][b]]
-            # pred_spans = batch["entities_pred"][b].keys()
-            #
-            # if self.training:
-            #     # Keep GT spans and Predicted spans in training
-            #     filtered_spans = list(set(gt_spans).union(set(pred_spans)))
-            # else:
-            #     # Keep only Predicted spans in inference
-            #     filtered_spans = pred_spans
-            #
-            # all_filtered_span_ids.append(filtered_spans)
-            #
-            # # Needs at least 2 spans to classify relations
-            # if len(filtered_spans) > 1:
-            #     # Get all span pairs and labels
-            #     filtered_pairs = [(a, b) for a in filtered_spans for b in filtered_spans if not a == b]
+                # # Filter entity spans AND SAMPLE
+                # gt_spans = [(ent["start"], ent["end"]) for ent in batch["entities_anno"][b]]
+                # # pred_spans = [(ent["start"], ent["end"]) for ent in batch["pred_entities"][b]]
+                # pred_spans = batch["entities_pred"][b].keys()
+                #
+                # if self.training:
+                #     # Keep GT spans and Predicted spans in training
+                #     filtered_spans = list(set(gt_spans).union(set(pred_spans)))
+                # else:
+                #     # Keep only Predicted spans in inference
+                #     filtered_spans = pred_spans
+                #
+                # all_filtered_span_ids.append(filtered_spans)
+                #
+                # # Needs at least 2 spans to classify relations
+                # if len(filtered_spans) > 1:
+                #     # Get all span pairs and labels
+                #     filtered_pairs = [(a, b) for a in filtered_spans for b in filtered_spans if not a == b]
 
                 # If training, possible negative sampling
                 if self.training:
-                    filtered_pairs, filtered_pairs_labels = get_pair_labels(entity_pair_spans,
-                                                                            batch["relations_anno"][b],
-                                                                            batch["entities_anno"][b],
-                                                                            neg_sampling=self.neg_sampling)
+                    filtered_pairs, filtered_pairs_labels = get_pair_labels(
+                        entity_pair_spans,
+                        batch["relations_anno"][b],
+                        batch["entities_anno"][b],
+                        neg_sampling=self.neg_sampling,
+                    )
                 # Else do not pass ground_truth information
                 # /!\ This results in an inaccurate loss computation in eval
                 # But it enables not to consider GT entities not predicted as entities
                 else:
-                    filtered_pairs, filtered_pairs_labels = get_pair_labels(entity_pair_spans,
-                                                                            neg_sampling=False)
+                    filtered_pairs, filtered_pairs_labels = get_pair_labels(entity_pair_spans, neg_sampling=False)
 
             # Otherwise dummy relation
             else:
@@ -183,7 +183,7 @@ class REDecoder(nn.Module):
 
         for b in range(batch_size):
             # Needs at least 2 spans to classify relations
-            if len(all_filtered_span_ids[b]) > 1 and all_labels[b] != ['None']:
+            if len(all_filtered_span_ids[b]) > 1 and all_labels[b] != ["None"]:
                 # Dict that maps a span (start, end) to its index in span_ids to retrieve pooled representations
                 span2idx = {span: idx for idx, span in enumerate(batch["span_ids"][b])}
 
@@ -194,8 +194,14 @@ class REDecoder(nn.Module):
                     # Concat both argument representations for each relation
 
                     filtered_pairs_representations.append(
-                        torch.cat([batch["span_pooled"][b][span2idx[tuple(arg1)]],
-                                   batch["span_pooled"][b][span2idx[tuple(arg2)]]], -1))
+                        torch.cat(
+                            [
+                                batch["span_pooled"][b][span2idx[tuple(arg1)]],
+                                batch["span_pooled"][b][span2idx[tuple(arg2)]],
+                            ],
+                            -1,
+                        )
+                    )
 
                     # Get pooled Middle context
                     if self.use_inbetween_context:
@@ -205,11 +211,13 @@ class REDecoder(nn.Module):
                             begin, end = arg2[1], arg1[0]
 
                         if end - begin > 0:
-                            filtered_pairs_context.append(word2entity_embedding(
-                                word_embeddings=batch["word_embeddings"][b, begin: end, :],
-                                pooling=self.pooling_fn,
-                                pooling_layer=self.pooling_layer
-                            ))
+                            filtered_pairs_context.append(
+                                word2entity_embedding(
+                                    word_embeddings=batch["word_embeddings"][b, begin:end, :],
+                                    pooling=self.pooling_fn,
+                                    pooling_layer=self.pooling_layer,
+                                )
+                            )
                         else:
                             filtered_pairs_context.append(torch.zeros(context_dim, device=get_device()))
 
@@ -221,9 +229,10 @@ class REDecoder(nn.Module):
 
                 if self.use_inbetween_context:
                     filtered_pairs_context = torch.stack(filtered_pairs_context)
-                    filtered_pairs_representations = torch.cat([filtered_pairs_representations, filtered_pairs_context],
-                                                               -1)
-                all_pair_representations[b, :len(filtered_pairs_representations), :] = filtered_pairs_representations
+                    filtered_pairs_representations = torch.cat(
+                        [filtered_pairs_representations, filtered_pairs_context], -1
+                    )
+                all_pair_representations[b, : len(filtered_pairs_representations), :] = filtered_pairs_representations
 
         batch["pair_pooled"] = all_pair_representations
         batch["pair_tags"] = targets
@@ -231,17 +240,17 @@ class REDecoder(nn.Module):
         # Classify pairs
         logits = torch.zeros((batch_size, max_n_relations, len(self.labels.relations.val2idx)), device=get_device())
         for i in range(0, max_n_relations, self.chunk_size):
-            pair_chunk_rep = batch["pair_pooled"][:, i:i + self.chunk_size]
+            pair_chunk_rep = batch["pair_pooled"][:, i : i + self.chunk_size]
             set_seeds()
-            logits[:, i:i + self.chunk_size] = self.linear(self.drop(pair_chunk_rep))
+            logits[:, i : i + self.chunk_size] = self.linear(self.drop(pair_chunk_rep))
             set_seeds()
 
             if self.biaffine:
-                head = pair_chunk_rep[:, :, :self.entity_dim].contiguous()
-                tail = pair_chunk_rep[:, :, self.entity_dim: 2 * self.entity_dim].contiguous()
+                head = pair_chunk_rep[:, :, : self.entity_dim].contiguous()
+                tail = pair_chunk_rep[:, :, self.entity_dim : 2 * self.entity_dim].contiguous()
 
                 set_seeds()
-                logits[:, i:i + self.chunk_size] += self.bilinear(self.drop(head), self.drop(tail))
+                logits[:, i : i + self.chunk_size] += self.bilinear(self.drop(head), self.drop(tail))
                 set_seeds()
 
         batch["re_scores"] = nn.Sigmoid()(logits)
@@ -252,14 +261,14 @@ class REDecoder(nn.Module):
             batch=batch,
             vocab=self.labels,
             remove_overlapping_relations=self.remove_overlapping_relations,
-            table_to_text_mode=self.table_to_text_mode
+            table_to_text_mode=self.table_to_text_mode,
         )
         # TODO: if at least one sample in batch has relation annotations we compute the loss
         # if batch['relations_anno'] is not None:
-        if any(batch_relations for batch_relations in batch['relations_anno'] if batch_relations):
+        if any(batch_relations for batch_relations in batch["relations_anno"] if batch_relations):
             batch["re_loss"] = self.compute_loss(batch)
         batch["relation_types"] = [rel for rel in self.labels.relations.val2idx.keys()]
-        batch["entity_types"] = [ent for ent in self.labels.entities.val2idx.keys() if ent != 'None']
+        batch["entity_types"] = [ent for ent in self.labels.entities.val2idx.keys() if ent != "None"]
 
         return batch
 
@@ -288,8 +297,9 @@ def pair2pred(batch, vocab, remove_overlapping_relations: bool = True, table_to_
 
     for b in range(batch_size):
         pred_relations = []
-        for (head, tail), pred, score, representation in zip(batch["pair_ids"][b], batch["re_output"][b],
-                                                             batch["re_scores"][b], batch["pair_pooled"][b]):
+        for (head, tail), pred, score, representation in zip(
+            batch["pair_ids"][b], batch["re_output"][b], batch["re_scores"][b], batch["pair_pooled"][b]
+        ):
             for i in pred.nonzero():
                 rel = dict()
                 if head > tail:
@@ -336,26 +346,33 @@ def filter_overlapping_relations(relations_pred):
                     assert len(overlapping_span) == 1
                     overlapping_span = overlapping_span[0]
                     # get entity name of found overlapping span
-                    overlapping_entity_name = rel_1["head_type"] if overlapping_span == rel_1["head"] else rel_1["tail_type"]
+                    overlapping_entity_name = (
+                        rel_1["head_type"] if overlapping_span == rel_1["head"] else rel_1["tail_type"]
+                    )
                     # get entity names of non overlapping entity for relation 1 and 2
-                    rel_1_other_entity_name = rel_1["head_type"] if overlapping_span != rel_1["head"] else rel_1["tail_type"]
-                    rel_2_other_entity_name = rel_2["head_type"] if overlapping_span != rel_2["head"] else rel_2["tail_type"]
+                    rel_1_other_entity_name = (
+                        rel_1["head_type"] if overlapping_span != rel_1["head"] else rel_1["tail_type"]
+                    )
+                    rel_2_other_entity_name = (
+                        rel_2["head_type"] if overlapping_span != rel_2["head"] else rel_2["tail_type"]
+                    )
                     # only delete relations if
                     if (
-                            overlapping_entity_name not in ALLOWED_1_TO_N_ENTITIES  # e.g. cy, py, etc.
-                            or
-                            # both non overlapping entities are of same type
-                            # and the type is not an allowed "N to 1" entity
-                            (rel_1_other_entity_name == rel_2_other_entity_name
-                             and rel_1_other_entity_name not in ALLOWED_N_TO_1_ENTITIES)
+                        overlapping_entity_name not in ALLOWED_1_TO_N_ENTITIES  # e.g. cy, py, etc.
+                        or
+                        # both non overlapping entities are of same type
+                        # and the type is not an allowed "N to 1" entity
+                        (
+                            rel_1_other_entity_name == rel_2_other_entity_name
+                            and rel_1_other_entity_name not in ALLOWED_N_TO_1_ENTITIES
+                        )
                     ):
                         rel_1_dist = rel_1["tail"][0] - rel_1["head"][1]
                         rel_2_dist = rel_2["tail"][0] - rel_1["head"][1]
                         # Delete relation with lower score
                         # or (if the score is equal) the one with the longer distance between its entities
-                        if (
-                                rel_1["score"] > rel_2["score"]
-                                or (rel_1["score"] == rel_2["score"] and rel_1_dist < rel_2_dist)
+                        if rel_1["score"] > rel_2["score"] or (
+                            rel_1["score"] == rel_2["score"] and rel_1_dist < rel_2_dist
                         ):
                             relations_to_delete.add(j)
                         else:

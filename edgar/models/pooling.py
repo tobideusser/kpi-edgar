@@ -7,7 +7,6 @@ from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 
 from edgar.trainer.utils import get_device
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,12 +20,11 @@ class PoolingRNNGlobal(nn.Module):
 
     def forward(self, batch: Dict, hidden=None):
         # Pack input sequence, apply RNN and Unpack output
-        inputs = batch['token_embeddings']
-        seqlens = [len(tokens) for tokens in batch['tokens']]
+        inputs = batch["token_embeddings"]
+        seqlens = [len(tokens) for tokens in batch["tokens"]]
         num_directions = 2 if self.rnn.bidirectional else 1
 
-        packed_inputs = pack_padded_sequence(inputs, seqlens, batch_first=self.batch_first,
-                                             enforce_sorted=False)
+        packed_inputs = pack_padded_sequence(inputs, seqlens, batch_first=self.batch_first, enforce_sorted=False)
 
         self.rnn.flatten_parameters()
         if hidden is None:
@@ -42,9 +40,7 @@ class PoolingRNNGlobal(nn.Module):
         #  with end of word embedding from forward rnn
         batched_start_ids = batch["word2token_start_ids"]
         batched_end_ids = batch["word2token_end_ids"]
-        output_pooled = torch.zeros(inputs.shape[0],
-                                    batched_start_ids.shape[-1],
-                                    inputs.shape[-1]).to(get_device())
+        output_pooled = torch.zeros(inputs.shape[0], batched_start_ids.shape[-1], inputs.shape[-1]).to(get_device())
         for b in range(batched_start_ids.shape[0]):
             for i in range(batched_start_ids.shape[1]):
                 backward_rnn_id = batched_start_ids[b, i]
@@ -71,8 +67,7 @@ class PoolingRNNLocal(nn.Module):
         # Pack input sequence, apply RNN and Unpack output
         num_directions = 2 if self.rnn.bidirectional else 1
 
-        packed_inputs = pack_padded_sequence(inputs, seq_lens, batch_first=self.batch_first,
-                                             enforce_sorted=False)
+        packed_inputs = pack_padded_sequence(inputs, seq_lens, batch_first=self.batch_first, enforce_sorted=False)
 
         self.rnn.flatten_parameters()
         packed_output, hidden = self.rnn(packed_inputs)
@@ -83,8 +78,7 @@ class PoolingRNNLocal(nn.Module):
 
         # create pooled output by concatenating start of word embedding from backward rnn
         #  with end of word embedding from forward rnn
-        output_pooled = torch.zeros(inputs.shape[0],
-                                    inputs.shape[-1]).to(get_device())
+        output_pooled = torch.zeros(inputs.shape[0], inputs.shape[-1]).to(get_device())
         for b, end_idx in zip(range(inputs.shape[0]), seq_lens):
             forward_embedding = output[b, end_idx - 1, 0]
             backward_embedding = output[b, 0, 1]
@@ -93,9 +87,9 @@ class PoolingRNNLocal(nn.Module):
         return output_pooled
 
 
-def token2word_embedding(data,
-                         pooling="max",
-                         pooling_layer: Optional[Union[PoolingRNNGlobal, PoolingRNNLocal, nn.Linear]] = None):
+def token2word_embedding(
+    data, pooling="max", pooling_layer: Optional[Union[PoolingRNNGlobal, PoolingRNNLocal, nn.Linear]] = None
+):
     """Pool subword bert embeddings into word embeddings"""
     assert pooling in ["first", "max", "sum", "avg", "rnn_global", "rnn_local", "attention"]
 
@@ -127,22 +121,23 @@ def token2word_embedding(data,
             return embeddings.max(2)[0]
 
         elif pooling == "rnn_local":
-            embeddings_masked = embeddings.masked_fill((mask == 0).unsqueeze(-1), 0.)
+            embeddings_masked = embeddings.masked_fill((mask == 0).unsqueeze(-1), 0.0)
             # batch_size x num_word_embeddings x num_token_embeddings x model_dim
 
-            max_num_tokens_per_word: int = (embeddings_masked.sum(dim=-1) != 0.).sum(dim=-1).max().item()
-            formatted_embeddings = torch.zeros(embeddings.shape[0],
-                                               embeddings.shape[1],
-                                               max_num_tokens_per_word,
-                                               embeddings.shape[-1]).to(get_device())
+            max_num_tokens_per_word: int = (embeddings_masked.sum(dim=-1) != 0.0).sum(dim=-1).max().item()
+            formatted_embeddings = torch.zeros(
+                embeddings.shape[0], embeddings.shape[1], max_num_tokens_per_word, embeddings.shape[-1]
+            ).to(get_device())
             for b in range(embeddings.shape[0]):
                 for s in range(embeddings.shape[1]):
                     embeddings_filtered = embeddings[b, s, mask[b, s] == 1, :]
-                    formatted_embeddings[b, s, :embeddings_filtered.shape[0], :] = embeddings_filtered
+                    formatted_embeddings[b, s, : embeddings_filtered.shape[0], :] = embeddings_filtered
             # batch_size x num_word_embeddings x max_num_tokens_per_word x model_dim
 
             batch_size, num_word_embeddings = formatted_embeddings.shape[:2]
-            formatted_embeddings = formatted_embeddings.view(-1, formatted_embeddings.shape[2], formatted_embeddings.shape[3])
+            formatted_embeddings = formatted_embeddings.view(
+                -1, formatted_embeddings.shape[2], formatted_embeddings.shape[3]
+            )
             # (batch_size * num_word_embeddings) x max_num_tokens_per_word x model_dim
 
             # get num of token embeddings for each word embedding
@@ -195,9 +190,9 @@ def token2word_embedding(data,
             # return embeddings.mean(2)
 
 
-def word2entity_embedding(word_embeddings,
-                          pooling="max",
-                          pooling_layer: Optional[Union[PoolingRNNGlobal, PoolingRNNLocal, nn.Linear]] = None):
+def word2entity_embedding(
+    word_embeddings, pooling="max", pooling_layer: Optional[Union[PoolingRNNGlobal, PoolingRNNLocal, nn.Linear]] = None
+):
     """Pool a span of word bert embeddings into an entity embedding"""
     assert pooling in ["max", "sum", "avg", "rnn_local", "attention"]
 

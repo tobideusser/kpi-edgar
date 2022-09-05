@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+
 from edgar.data_classes import Labels
 
 
@@ -11,12 +12,7 @@ class CRF(nn.Module):
         labels (Labels): label vocab (no special tokens).
     """
 
-    def __init__(
-            self,
-            input_dim: int,
-            labels: Labels,
-            label_masking: bool = True,
-            dropout: float = 0.0):
+    def __init__(self, input_dim: int, labels: Labels, label_masking: bool = True, dropout: float = 0.0):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(input_dim, len(labels.iobes.idx2val) + 1)
@@ -63,7 +59,7 @@ class CRF(nn.Module):
 
         nll = -self.log_likelihood(emissions, tags, mask=mask)
         # Note: We return not the crf logits or marginal probs.
-        return {'loss': nll, 'logits': emissions[:, :, :-1]}
+        return {"loss": nll, "logits": emissions[:, :, :-1]}
 
     def log_likelihood(self, emissions, tags, mask=None):
         """Compute the probability of a sequence of tags given a sequence of
@@ -202,11 +198,10 @@ class CRF(nn.Module):
 
         # convert sequences to a tensor (needs padding) to be compatible with model structure
         max_num_words = max([len(seq) for seq in sequences])
-        sequences = torch.stack([torch.nn.functional.pad(torch.tensor(seq), pad=(0, max_num_words - len(seq)))
-                                 for seq in sequences])
-        return {'logits': emissions,
-                'scores': scores,
-                'best_sequences': sequences}
+        sequences = torch.stack(
+            [torch.nn.functional.pad(torch.tensor(seq), pad=(0, max_num_words - len(seq))) for seq in sequences]
+        )
+        return {"logits": emissions, "scores": scores, "best_sequences": sequences}
 
     def _viterbi_decode(self, emissions, mask):
         """Compute the viterbi algorithm to find the most probable sequence of labels
@@ -286,14 +281,14 @@ class CRF(nn.Module):
     @staticmethod
     def _find_best_path(sample_id, best_tag, backpointers):
         """Auxiliary function to find the best path sequence for a specific sample.
-            Args:
-                sample_id (int): sample index in the range [0, batch_size)
-                best_tag (int): tag which maximizes the final score
-                backpointers (list of lists of tensors): list of pointers with
-                    shape (seq_len_i-1, nb_labels, batch_size)
-                    where seq_len_i represents the length of the ith sample in the batch.
-            Returns:
-                list of ints: a list of tag indexes representing the bast path
+        Args:
+            sample_id (int): sample index in the range [0, batch_size)
+            best_tag (int): tag which maximizes the final score
+            backpointers (list of lists of tensors): list of pointers with
+                shape (seq_len_i-1, nb_labels, batch_size)
+                where seq_len_i represents the length of the ith sample in the batch.
+        Returns:
+            list of ints: a list of tag indexes representing the bast path
         """
 
         # add the final best_tag to our best path

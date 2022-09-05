@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional
 
-from edgar.trainer.utils import get_device
 from edgar.data_classes import Labels
+from edgar.trainer.utils import get_device
 
 logger = logging.getLogger(__name__)
 
@@ -46,19 +46,13 @@ def get_target_subsequent_mask(max_seq_len: int):
 class ScaledDotProductAttention(nn.Module):
     """Scaled Dot-Product Attention"""
 
-    def __init__(self,
-                 temperature: torch.Tensor,
-                 dropout: float = 0.1):
+    def __init__(self, temperature: torch.Tensor, dropout: float = 0.1):
 
         super().__init__()
         self.temperature = temperature
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self,
-                query: torch.Tensor,
-                key: torch.Tensor,
-                value: torch.Tensor,
-                mask: Optional[torch.Tensor] = None):
+    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: Optional[torch.Tensor] = None):
 
         """Scaled Dot-Product Attention forward
         Args:
@@ -92,9 +86,11 @@ class ScaledDotProductAttention(nn.Module):
         nan_mask = torch.isnan(attention)
         num_nan = nan_mask.sum()
         if num_nan > 0:
-            logger.warning(f'{num_nan} of {attention.numel()} nan values encountered due to softmax on -inf only. '
-                           f'All nan values are replaced by 0.')
-            attention = attention.masked_fill(nan_mask, 0.)
+            logger.warning(
+                f"{num_nan} of {attention.numel()} nan values encountered due to softmax on -inf only. "
+                f"All nan values are replaced by 0."
+            )
+            attention = attention.masked_fill(nan_mask, 0.0)
 
         # step 5: matmul with value
         out = self.dropout(attention) @ value
@@ -106,13 +102,15 @@ class ScaledDotProductAttention(nn.Module):
 class MultiHeadAttention(nn.Module):
     """MultiHeadAttention sublayer"""
 
-    def __init__(self,
-                 dim_model: int,
-                 dim_key: int,
-                 dim_value: int,
-                 num_heads: int,
-                 dropout: float = 0.1,
-                 dim_model_encoder: Optional[int] = None):
+    def __init__(
+        self,
+        dim_model: int,
+        dim_key: int,
+        dim_value: int,
+        num_heads: int,
+        dropout: float = 0.1,
+        dim_model_encoder: Optional[int] = None,
+    ):
         super().__init__()
 
         self.num_heads = num_heads
@@ -146,11 +144,7 @@ class MultiHeadAttention(nn.Module):
     # def device(self):
     #     return next(self.parameters()).device
 
-    def forward(self,
-                query: torch.Tensor,
-                key: torch.Tensor,
-                value: torch.Tensor,
-                mask: Optional[torch.Tensor] = None):
+    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: Optional[torch.Tensor] = None):
         """MultiHeadAttention sublayer forward
         Args:
             query (torch.Tensor) : the query
@@ -201,10 +195,7 @@ class MultiHeadAttention(nn.Module):
 class PositionwiseFeedForward(nn.Module):
     """Two feed-forward sublayer"""
 
-    def __init__(self,
-                 dim_model: int,
-                 dim_feedforward: int,
-                 dropout: float = 0.1):
+    def __init__(self, dim_model: int, dim_feedforward: int, dropout: float = 0.1):
         super().__init__()
 
         self.fc1 = nn.Linear(in_features=dim_model, out_features=dim_feedforward, bias=True)
@@ -223,22 +214,20 @@ class PositionwiseFeedForward(nn.Module):
 class DecoderLayer(nn.Module):
     """DecoderLayer"""
 
-    def __init__(self,
-                 dim_model: int,
-                 dim_key: int,
-                 dim_value: int,
-                 num_heads: int,
-                 dim_feedforward: int,
-                 dropout: float,
-                 dim_model_encoder: Optional[int]):
+    def __init__(
+        self,
+        dim_model: int,
+        dim_key: int,
+        dim_value: int,
+        num_heads: int,
+        dim_feedforward: int,
+        dropout: float,
+        dim_model_encoder: Optional[int],
+    ):
         super(DecoderLayer, self).__init__()
 
         self.self_attention = MultiHeadAttention(
-            dim_model=dim_model,
-            dim_key=dim_key,
-            dim_value=dim_value,
-            num_heads=num_heads,
-            dropout=dropout
+            dim_model=dim_model, dim_key=dim_key, dim_value=dim_value, num_heads=num_heads, dropout=dropout
         )
         self.self_attention_layer_norm = nn.LayerNorm(dim_model)
         self.self_attention_dropout = nn.Dropout(dropout)
@@ -251,7 +240,7 @@ class DecoderLayer(nn.Module):
                 dim_value=dim_value,
                 num_heads=num_heads,
                 dropout=dropout,
-                dim_model_encoder=dim_model_encoder
+                dim_model_encoder=dim_model_encoder,
             )
             self.cross_attention_layer_norm = nn.LayerNorm(dim_model)
             self.cross_attention_dropout = nn.Dropout(dropout)
@@ -260,12 +249,14 @@ class DecoderLayer(nn.Module):
         self.feedforward_layer_norm = nn.LayerNorm(dim_model)
         self.feedforward_dropout = nn.Dropout(dropout)
 
-    def forward(self,
-                decoder_input: torch.Tensor,
-                encoder_output: torch.Tensor,
-                source_mask: torch.Tensor,
-                target_mask: torch.Tensor):
-        """ Decoder Layer forward pass
+    def forward(
+        self,
+        decoder_input: torch.Tensor,
+        encoder_output: torch.Tensor,
+        source_mask: torch.Tensor,
+        target_mask: torch.Tensor,
+    ):
+        """Decoder Layer forward pass
 
         Args:
            decoder_input (torch.Tensor) : embedded target sequence
@@ -276,20 +267,18 @@ class DecoderLayer(nn.Module):
         """
 
         decoder_output, decoder_self_attention = self.self_attention(
-            query=decoder_input,
-            key=decoder_input,
-            value=decoder_input,
-            mask=target_mask)
+            query=decoder_input, key=decoder_input, value=decoder_input, mask=target_mask
+        )
         decoder_input = self.self_attention_layer_norm(decoder_input + self.self_attention_dropout(decoder_output))
 
         decoder_encoder_attention = None
         if self.use_cross_attention:
             decoder_output, decoder_encoder_attention = self.cross_attention(
-                query=decoder_input,
-                key=encoder_output,
-                value=encoder_output,
-                mask=source_mask)
-            decoder_input = self.cross_attention_layer_norm(decoder_input + self.cross_attention_dropout(decoder_output))
+                query=decoder_input, key=encoder_output, value=encoder_output, mask=source_mask
+            )
+            decoder_input = self.cross_attention_layer_norm(
+                decoder_input + self.cross_attention_dropout(decoder_output)
+            )
 
         # positionwise feedforward
         decoder_output = self.positionwise_feedforward(decoder_input)
@@ -299,9 +288,7 @@ class DecoderLayer(nn.Module):
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, dim_model: int,
-                 dropout: float = 0.1,
-                 num_positions: int = 5000):
+    def __init__(self, dim_model: int, dropout: float = 0.1, num_positions: int = 5000):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
         pe = torch.zeros(num_positions, dim_model)
@@ -313,7 +300,7 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x: torch.Tensor):
-        """ Positional Encoding forward
+        """Positional Encoding forward
         Args:
             x (tensor): input embeddings
         """
@@ -324,48 +311,54 @@ class PositionalEncoding(nn.Module):
 class TransformerDecoder(nn.Module):
     """Decoder model"""
 
-    def __init__(self,
-                 num_target_vocab: int,
-                 dim_model: int = 512,
-                 dim_key: int = 64,
-                 dim_value: int = 64,
-                 num_heads: int = 8,
-                 dim_feedforward: int = 2048,
-                 dropout: float = 0.1,
-                 num_layers: int = 6,
-                 num_positions: int = 5000,
-                 dim_model_encoder: Optional[int] = None,
-                 word_embedding_dim: Optional[int] = None
-                 ):
+    def __init__(
+        self,
+        num_target_vocab: int,
+        dim_model: int = 512,
+        dim_key: int = 64,
+        dim_value: int = 64,
+        num_heads: int = 8,
+        dim_feedforward: int = 2048,
+        dropout: float = 0.1,
+        num_layers: int = 6,
+        num_positions: int = 5000,
+        dim_model_encoder: Optional[int] = None,
+        word_embedding_dim: Optional[int] = None,
+    ):
 
         super().__init__()
 
-        self.position_encoder = PositionalEncoding(dim_model=dim_model,
-                                                   dropout=dropout,
-                                                   num_positions=num_positions)
+        self.position_encoder = PositionalEncoding(dim_model=dim_model, dropout=dropout, num_positions=num_positions)
 
-        self.decoder_layer_stack = nn.ModuleList([
-            DecoderLayer(dim_model=dim_model,
-                         dim_key=dim_key,
-                         dim_value=dim_value,
-                         num_heads=num_heads,
-                         dim_feedforward=dim_feedforward,
-                         dropout=dropout,
-                         dim_model_encoder=dim_model_encoder)
-            for _ in range(num_layers)])
+        self.decoder_layer_stack = nn.ModuleList(
+            [
+                DecoderLayer(
+                    dim_model=dim_model,
+                    dim_key=dim_key,
+                    dim_value=dim_value,
+                    num_heads=num_heads,
+                    dim_feedforward=dim_feedforward,
+                    dropout=dropout,
+                    dim_model_encoder=dim_model_encoder,
+                )
+                for _ in range(num_layers)
+            ]
+        )
 
         if word_embedding_dim:
             self.fc = nn.Linear(in_features=dim_model + word_embedding_dim, out_features=num_target_vocab, bias=True)
         else:
             self.fc = nn.Linear(in_features=dim_model, out_features=num_target_vocab, bias=True)
 
-    def forward(self,
-                encoder_output: torch.Tensor,
-                target: torch.Tensor,
-                source_mask: torch.Tensor,
-                target_mask: torch.Tensor,
-                word_embeddings: Optional[torch.Tensor] = None,
-                return_attentions: bool = False):
+    def forward(
+        self,
+        encoder_output: torch.Tensor,
+        target: torch.Tensor,
+        source_mask: torch.Tensor,
+        target_mask: torch.Tensor,
+        word_embeddings: Optional[torch.Tensor] = None,
+        return_attentions: bool = False,
+    ):
 
         """Decoder model forward
 
@@ -387,7 +380,7 @@ class TransformerDecoder(nn.Module):
                 decoder_input=decoder_output,
                 encoder_output=encoder_output,
                 source_mask=source_mask,
-                target_mask=target_mask
+                target_mask=target_mask,
             )
             decoder_encoder_attention_list += [decoder_encoder_attention] if return_attentions else []
 
@@ -398,30 +391,30 @@ class TransformerDecoder(nn.Module):
         if return_attentions:
             return decoder_output, decoder_encoder_attention_list
 
-        return {'logits': logits,
-                'cross_attention': decoder_encoder_attention_list if return_attentions else None}
+        return {"logits": logits, "cross_attention": decoder_encoder_attention_list if return_attentions else None}
 
 
 class NERTransformer(nn.Module):
     """Only contains the Transformer Decoder.
     Handles training vs inference distinction. Prepares inputs, masks, etc."""
 
-    def __init__(self,
-                 labels: Labels,
-                 input_dim: int,
-                 label_embedding_dim: int,
-                 dim_key: int = 64,
-                 dim_value: int = 64,
-                 num_heads: int = 8,
-                 dim_feedforward: int = 2048,
-                 dropout: float = 0.1,
-                 num_layers: int = 6,
-                 num_positions: int = 5000,
-                 label_masking: bool = True,
-                 add_bos: bool = True,
-                 use_cross_attention: bool = False,
-                 concat_word_embeddings_after_attention: bool = False
-                 ):
+    def __init__(
+        self,
+        labels: Labels,
+        input_dim: int,
+        label_embedding_dim: int,
+        dim_key: int = 64,
+        dim_value: int = 64,
+        num_heads: int = 8,
+        dim_feedforward: int = 2048,
+        dropout: float = 0.1,
+        num_layers: int = 6,
+        num_positions: int = 5000,
+        label_masking: bool = True,
+        add_bos: bool = True,
+        use_cross_attention: bool = False,
+        concat_word_embeddings_after_attention: bool = False,
+    ):
         super().__init__()
 
         self.labels = labels
@@ -435,7 +428,7 @@ class NERTransformer(nn.Module):
             self.label_embeddings = nn.Embedding(num_embeddings, self.label_embedding_dim)
         # use "O" (outside) tag as start embedding
         else:
-            self.bos_tag_id = self.labels.iobes.val2idx['O']
+            self.bos_tag_id = self.labels.iobes.val2idx["O"]
             self.label_embeddings = nn.Embedding(self.num_labels, self.label_embedding_dim)
         self.label_masking = label_masking
 
@@ -457,7 +450,7 @@ class NERTransformer(nn.Module):
             num_layers=num_layers,
             num_positions=num_positions,
             dropout=dropout,
-            word_embedding_dim=input_dim if concat_word_embeddings_after_attention else None
+            word_embedding_dim=input_dim if concat_word_embeddings_after_attention else None,
         )
 
     def get_label_mask(self, label_ids: torch.Tensor) -> torch.Tensor:
@@ -473,15 +466,17 @@ class NERTransformer(nn.Module):
                 try:
                     label_name = self.labels.iobes.idx2val[label_ids[b, i].item()]
                 except KeyError:
-                    label_name = '[BOS]'
+                    label_name = "[BOS]"
 
-                if label_name.startswith(('[BOS]', 'O', 'E', 'S')):
-                    masked_ids = [key for key, value in self.labels.iobes.idx2val.items()
-                                  if not value.startswith(('O', 'B', 'S'))]
+                if label_name.startswith(("[BOS]", "O", "E", "S")):
+                    masked_ids = [
+                        key for key, value in self.labels.iobes.idx2val.items() if not value.startswith(("O", "B", "S"))
+                    ]
                 else:
-                    tag = label_name.split('-')[-1]
-                    masked_ids = [key for key, value in self.labels.iobes.idx2val.items()
-                                  if value not in [f'I-{tag}', f'E-{tag}']]
+                    tag = label_name.split("-")[-1]
+                    masked_ids = [
+                        key for key, value in self.labels.iobes.idx2val.items() if value not in [f"I-{tag}", f"E-{tag}"]
+                    ]
 
                 mask[b, i, masked_ids] = 0
 
@@ -493,15 +488,17 @@ class NERTransformer(nn.Module):
             try:
                 label_name = self.labels.iobes.idx2val[label_id[i].item()]
             except KeyError:
-                label_name = '[BOS]'
+                label_name = "[BOS]"
 
-            if label_name.startswith(('[BOS]', 'O', 'E', 'S')):
-                masked_ids = [key for key, value in self.labels.iobes.idx2val.items()
-                              if not value.startswith(('O', 'B', 'S'))]
+            if label_name.startswith(("[BOS]", "O", "E", "S")):
+                masked_ids = [
+                    key for key, value in self.labels.iobes.idx2val.items() if not value.startswith(("O", "B", "S"))
+                ]
             else:
-                tag = label_name.split('-')[-1]
-                masked_ids = [key for key, value in self.labels.iobes.idx2val.items()
-                              if value not in [f'I-{tag}', f'E-{tag}']]
+                tag = label_name.split("-")[-1]
+                masked_ids = [
+                    key for key, value in self.labels.iobes.idx2val.items() if value not in [f"I-{tag}", f"E-{tag}"]
+                ]
 
             logit[i, :, masked_ids] = -1e12
         return logit
@@ -518,35 +515,43 @@ class NERTransformer(nn.Module):
         label_ids_shifted = torch.cat([bos_id, label_ids], dim=1)[:, :-1]
 
         if self.use_cross_attention:
-            source_mask = pad_mask.unsqueeze(-2) & torch.zeros(seq_len, seq_len).fill_diagonal_(1).bool().to(get_device())
+            source_mask = pad_mask.unsqueeze(-2) & torch.zeros(seq_len, seq_len).fill_diagonal_(1).bool().to(
+                get_device()
+            )
             target_mask = pad_mask.unsqueeze(-2) & get_target_subsequent_mask(max_seq_len=seq_len).to(get_device())
-            output = self.transformer_decoder(encoder_output=word_embeddings,
-                                              target=label_embeddings_shifted,
-                                              source_mask=source_mask,
-                                              target_mask=target_mask,
-                                              return_attentions=False)
+            output = self.transformer_decoder(
+                encoder_output=word_embeddings,
+                target=label_embeddings_shifted,
+                source_mask=source_mask,
+                target_mask=target_mask,
+                return_attentions=False,
+            )
         else:
             target_mask = pad_mask.unsqueeze(-2) & get_target_subsequent_mask(max_seq_len=seq_len).to(get_device())
 
             if self.concat_word_embeddings_after_attention:
-                output = self.transformer_decoder(encoder_output=None,
-                                                  target=label_embeddings_shifted,
-                                                  source_mask=None,
-                                                  target_mask=target_mask,
-                                                  word_embeddings=word_embeddings,
-                                                  return_attentions=False)
+                output = self.transformer_decoder(
+                    encoder_output=None,
+                    target=label_embeddings_shifted,
+                    source_mask=None,
+                    target_mask=target_mask,
+                    word_embeddings=word_embeddings,
+                    return_attentions=False,
+                )
             else:
                 target_embedding = torch.cat([word_embeddings, label_embeddings_shifted], dim=-1)
-                output = self.transformer_decoder(encoder_output=None,
-                                                  target=target_embedding,
-                                                  source_mask=None,
-                                                  target_mask=target_mask,
-                                                  return_attentions=False)
+                output = self.transformer_decoder(
+                    encoder_output=None,
+                    target=target_embedding,
+                    source_mask=None,
+                    target_mask=target_mask,
+                    return_attentions=False,
+                )
 
         if self.label_masking:
             label_mask = self.get_label_mask(label_ids=label_ids_shifted)
-            logits = output['logits'].masked_fill(label_mask == 0, -10000)
-            output['logits'] = logits
+            logits = output["logits"].masked_fill(label_mask == 0, -10000)
+            output["logits"] = logits
 
         return output
 
@@ -567,28 +572,34 @@ class NERTransformer(nn.Module):
 
         for i in range(seq_len):
             if self.use_cross_attention:
-                output = self.transformer_decoder(encoder_output=word_embeddings,
-                                                  target=label_embeddings_shifted,
-                                                  source_mask=source_mask[:, :i+1, :],
-                                                  target_mask=target_mask[:, :, :i+1],
-                                                  return_attentions=False)
+                output = self.transformer_decoder(
+                    encoder_output=word_embeddings,
+                    target=label_embeddings_shifted,
+                    source_mask=source_mask[:, : i + 1, :],
+                    target_mask=target_mask[:, :, : i + 1],
+                    return_attentions=False,
+                )
             else:
                 if self.concat_word_embeddings_after_attention:
-                    output = self.transformer_decoder(encoder_output=None,
-                                                      target=label_embeddings_shifted,
-                                                      source_mask=None,
-                                                      target_mask=target_mask[:, :, :i + 1],
-                                                      word_embeddings=word_embeddings[:, :i+1, :],
-                                                      return_attentions=False)
+                    output = self.transformer_decoder(
+                        encoder_output=None,
+                        target=label_embeddings_shifted,
+                        source_mask=None,
+                        target_mask=target_mask[:, :, : i + 1],
+                        word_embeddings=word_embeddings[:, : i + 1, :],
+                        return_attentions=False,
+                    )
                 else:
-                    target_embeddings = torch.cat([word_embeddings[:, :i+1, :], label_embeddings_shifted], dim=-1)
-                    output = self.transformer_decoder(encoder_output=None,
-                                                      target=target_embeddings,
-                                                      source_mask=None,
-                                                      target_mask=target_mask[:, :, :i + 1],
-                                                      return_attentions=False)
+                    target_embeddings = torch.cat([word_embeddings[:, : i + 1, :], label_embeddings_shifted], dim=-1)
+                    output = self.transformer_decoder(
+                        encoder_output=None,
+                        target=target_embeddings,
+                        source_mask=None,
+                        target_mask=target_mask[:, :, : i + 1],
+                        return_attentions=False,
+                    )
 
-            next_logit = output['logits'][:, -1, :].unsqueeze(1)
+            next_logit = output["logits"][:, -1, :].unsqueeze(1)
 
             if self.label_masking:
                 # mask out impossible entity tags given the previously predicted tag
@@ -599,10 +610,11 @@ class NERTransformer(nn.Module):
 
             probs = torch.softmax(next_logit, dim=-1)
             pred_label_id = torch.argmax(probs, dim=-1)
-            label_embeddings_shifted = torch.cat([label_embeddings_shifted,
-                                                  self.label_embeddings(pred_label_id)], dim=1)
+            label_embeddings_shifted = torch.cat(
+                [label_embeddings_shifted, self.label_embeddings(pred_label_id)], dim=1
+            )
             label_ids_shifted = torch.cat([label_ids_shifted, pred_label_id], dim=1)
 
         logits = torch.cat(logits, dim=1)
 
-        return {'logits': logits}
+        return {"logits": logits}

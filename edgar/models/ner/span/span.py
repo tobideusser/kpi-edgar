@@ -10,6 +10,7 @@ from edgar.trainer.utils import get_device, get_padding_mask, set_seeds, argsort
 from edgar.models.ner import NERDecoder
 from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,11 +55,11 @@ def filter_overlapping_spans(batch_pred_entities: List[List[Dict]]) -> List[Dict
     batch_pred_entities_filtered: List[Dict] = []
     for entities in batch_pred_entities:
         if entities:
-            spans = [(ent['start'], ent['end']) for ent in entities]
+            spans = [(ent["start"], ent["end"]) for ent in entities]
 
             inds_sorted = argsort(spans)
             spans_sorted = [spans[i] for i in inds_sorted]
-            scores_sorted = [entities[i]['score'] for i in inds_sorted]
+            scores_sorted = [entities[i]["score"] for i in inds_sorted]
 
             # Group entity spans together if they overlap
             # e.g. [[3, 7], [17, 18], [18, 19], [18, 20], [19, 20]]
@@ -76,15 +77,14 @@ def filter_overlapping_spans(batch_pred_entities: List[List[Dict]]) -> List[Dict
             groups.append(new_group)
 
             # get spans per group that don't have the highest score -> to be filtered out
-            spans_to_delete = [span[1]
-                               for group in groups if len(group) > 1
-                               for span in group if span != max(group)]
+            spans_to_delete = [span[1] for group in groups if len(group) > 1 for span in group if span != max(group)]
 
             # get their corresponding indices in the original list
             inds_to_keep = [i for i, span in enumerate(spans) if span not in spans_to_delete]
 
-            entities_filtered = {(ent['start'], ent['end']): ent['type_']
-                                 for i, ent in enumerate(entities) if i in inds_to_keep}
+            entities_filtered = {
+                (ent["start"], ent["end"]): ent["type_"] for i, ent in enumerate(entities) if i in inds_to_keep
+            }
 
             batch_pred_entities_filtered.append(entities_filtered)
         else:
@@ -96,7 +96,7 @@ def filter_overlapping_spans(batch_pred_entities: List[List[Dict]]) -> List[Dict
 def span2pred(batch, vocab):
     """Convert span predictions into list of entities ({'start', 'end', 'type_'})"""
     batch_size = batch["ner_output"].size(0)
-    scores = torch.softmax(batch['ner_logits'], dim=-1).max(dim=-1)[0]
+    scores = torch.softmax(batch["ner_logits"], dim=-1).max(dim=-1)[0]
     batch_pred_entities = []
 
     for b in range(batch_size):
@@ -104,10 +104,9 @@ def span2pred(batch, vocab):
         pred_entities = []
         for span, pred, score in zip(batch["span_ids"][b], batch["ner_output"][b], scores[b]):
             if not pred.item() == vocab.entities.val2idx["None"]:
-                pred_entities.append({"start": span[0],
-                                      "end": span[1],
-                                      "type_": vocab.entities.idx2val[pred.item()],
-                                      "score": score})
+                pred_entities.append(
+                    {"start": span[0], "end": span[1], "type_": vocab.entities.idx2val[pred.item()], "score": score}
+                )
                 # pred_entities[(span[0], span[1])] = vocab.entities.idx2val[pred.item()]
 
         batch_pred_entities.append(pred_entities)
@@ -116,18 +115,20 @@ def span2pred(batch, vocab):
 
 
 class SpanNERDecoder(NERDecoder):
-    def __init__(self,
-                 input_dim: int,
-                 labels: Labels,
-                 neg_sampling: int = 100,
-                 max_span_len: int = 10,
-                 span_len_embedding_dim: int = 25,
-                 pooling_fn: str = "max",
-                 dropout: float = 0.,
-                 chunk_size: int = 1000,
-                 use_cls: bool = False,
-                 loss_weight: float = 1.,
-                 remove_overlapping_spans: bool = True):
+    def __init__(
+        self,
+        input_dim: int,
+        labels: Labels,
+        neg_sampling: int = 100,
+        max_span_len: int = 10,
+        span_len_embedding_dim: int = 25,
+        pooling_fn: str = "max",
+        dropout: float = 0.0,
+        chunk_size: int = 1000,
+        use_cls: bool = False,
+        loss_weight: float = 1.0,
+        remove_overlapping_spans: bool = True,
+    ):
         super().__init__()
         self.labels = labels
         self.neg_sampling = neg_sampling
@@ -138,9 +139,9 @@ class SpanNERDecoder(NERDecoder):
         self.pooling_fn = pooling_fn
 
         if pooling_fn == "rnn_local":
-            self.pooling_layer = PoolingRNNLocal(nn.GRU(
-                input_dim, int(input_dim / 2), bidirectional=True, batch_first=True
-            ))
+            self.pooling_layer = PoolingRNNLocal(
+                nn.GRU(input_dim, int(input_dim / 2), bidirectional=True, batch_first=True)
+            )
         elif pooling_fn == "attention":
             self.pooling_layer = nn.Linear(input_dim, 1)
         else:
@@ -166,7 +167,7 @@ class SpanNERDecoder(NERDecoder):
         self.linear = nn.Linear(self.input_dim, len(self.labels.entities.idx2val))
 
     def forward(self, batch: Dict):
-        word_embeddings = batch['word_embeddings']
+        word_embeddings = batch["word_embeddings"]
         batch_size, _, embedding_dim = word_embeddings.shape
 
         # Get all spans and their corresponding labels
@@ -183,7 +184,7 @@ class SpanNERDecoder(NERDecoder):
                 span_ids, labels = get_span_labels(
                     span_ids,
                     batch["entities_anno"][b],  # if batch["entities_anno"] is not None else None,
-                    neg_sampling=False
+                    neg_sampling=False,
                 )
 
             all_span_ids.append(span_ids)
@@ -202,9 +203,9 @@ class SpanNERDecoder(NERDecoder):
                     targets[b, i] = self.labels.entities.val2idx[label]
 
                     span_representation = word2entity_embedding(
-                        word_embeddings=batch["word_embeddings"][b, start: end, :],
+                        word_embeddings=batch["word_embeddings"][b, start:end, :],
                         pooling=self.pooling_fn,
-                        pooling_layer=self.pooling_layer
+                        pooling_layer=self.pooling_layer,
                     )
 
                     # Concat span length embedding
@@ -214,7 +215,7 @@ class SpanNERDecoder(NERDecoder):
 
                     # Concat CLS
                     if self.use_cls:
-                        span_representation = torch.cat([span_representation, batch['cls_embedding'][b]], -1)
+                        span_representation = torch.cat([span_representation, batch["cls_embedding"][b]], -1)
 
                     span_representations[b, i] = span_representation
 
@@ -227,14 +228,16 @@ class SpanNERDecoder(NERDecoder):
         logits = torch.zeros((batch_size, max_n_spans, len(self.labels.entities.val2idx)), device=get_device())
 
         for i in range(0, max_n_spans, self.chunk_size):
-            logits[:, i:i + self.chunk_size] = self.linear(self.drop(batch["span_pooled"][:, i:i + self.chunk_size]))
+            logits[:, i : i + self.chunk_size] = self.linear(
+                self.drop(batch["span_pooled"][:, i : i + self.chunk_size])
+            )
 
         batch["ner_logits"] = logits
         batch["ner_output"] = torch.argmax(logits, dim=-1)
 
         # TODO: Why only compute when relations are set?
         # if batch['relations_anno'] is not None:
-        if any(batch_entities for batch_entities in batch['entities_anno'] if batch_entities):
+        if any(batch_entities for batch_entities in batch["entities_anno"] if batch_entities):
             batch["ner_loss"] = self.compute_loss(batch)
 
         # Convert span predictions into list of entities
@@ -243,8 +246,10 @@ class SpanNERDecoder(NERDecoder):
         if self.remove_overlapping_spans and not self.training:
             batch["entities_pred"] = filter_overlapping_spans(entities_pred)
         else:
-            batch["entities_pred"] = [{(ent['start'], ent['end']): ent['type_']
-                                       for i, ent in enumerate(entities)} for entities in entities_pred]
+            batch["entities_pred"] = [
+                {(ent["start"], ent["end"]): ent["type_"] for i, ent in enumerate(entities)}
+                for entities in entities_pred
+            ]
 
         return batch
 

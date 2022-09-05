@@ -1,33 +1,29 @@
 import logging
 from typing import Dict
 
-from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 import torch
-import torch.nn as nn
-from transformers import AutoConfig, AutoModel
-from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
+from gensim.models.keyedvectors import KeyedVectors
 
-from edgar.trainer.utils import get_device
-from edgar.models.pooling import (PoolingRNNGlobal, PoolingRNNLocal, token2word_embedding)
 from edgar.models.encoders import Encoder
-
+from edgar.trainer.utils import get_device
 
 logger = logging.getLogger(__name__)
 
 
 class EdgarW2VEncoder(Encoder):
-    def __init__(self,
-                 path_embedding: str,
-                 embedding_dim: int = 200,
-                 oov_vector: str = "random", # how should the out of vocabulary(oov) word should be handled
-                 seed: int = 100,
-                 word_pooling: str = None
-                 ):
+    def __init__(
+        self,
+        path_embedding: str,
+        embedding_dim: int = 200,
+        oov_vector: str = "random",  # how should the out of vocabulary(oov) word should be handled
+        seed: int = 100,
+        word_pooling: str = None,
+    ):
         super().__init__()
 
         self.emb_dim = embedding_dim
-        self.encoder = KeyedVectors.load_word2vec_format(fname = path_embedding, binary=True)
+        self.encoder = KeyedVectors.load_word2vec_format(fname=path_embedding, binary=True)
         # if we want to save the binary file into a text file
         # self.encoder.save_word2vec_format(path_embedding + "\edgarW2V.txt", binary=False)
 
@@ -51,10 +47,10 @@ class EdgarW2VEncoder(Encoder):
                 # if the word is present in edgarW2v model then take embeddings else embedding of oov
                 if word_value in self.encoder:
                     emb = torch.from_numpy(np.copy(self.encoder[word_value]))
-                    word_embedding_list.append(emb.reshape((1,-1)))
+                    word_embedding_list.append(emb.reshape((1, -1)))
                 else:
                     emb = torch.from_numpy(np.copy(self.encoder["oov"]))
-                    word_embedding_list.append(emb.reshape((1,-1)))
+                    word_embedding_list.append(emb.reshape((1, -1)))
             # creating a tensor of zeros to make all word embedding vectors of equal batch length
             num_rows = max_word_batch - len_word_list
             if num_rows == 0:

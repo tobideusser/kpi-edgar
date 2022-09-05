@@ -1,10 +1,7 @@
 import torch
 
 
-def expand_inputs(
-        x: torch.Tensor,
-        num_beams: int = 1
-) -> torch.LongTensor:
+def expand_inputs(x: torch.Tensor, num_beams: int = 1) -> torch.LongTensor:
     """Expand inputs number of beams times for each sample in batch.
     E.g. num_beams = 2
          Input:  [[1,3,2,10,5], [4,2,8,5,4]]

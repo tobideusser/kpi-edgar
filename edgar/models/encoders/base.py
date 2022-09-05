@@ -9,10 +9,13 @@ from torch import nn
 
 logger = logging.getLogger(__name__)
 
-ENCODER_models: Dict = {"sentenceEncoder": "edgar.models.encoders.SentenceEncoder",
-                        "edgarW2V":  "edgar.models.encoders.EdgarW2VEncoder",
-                        "glove": "edgar.models.encoders.GloveEncoder",
-                        "tfidf": "edgar.models.encoders.TfIdfEncoder"}
+
+ENCODER_models: Dict = {
+    "sentenceEncoder": "edgar.models.encoders.SentenceEncoder",
+    "edgarW2V": "edgar.models.encoders.EdgarW2VEncoder",
+    "glove": "edgar.models.encoders.GloveEncoder",
+    "tfidf": "edgar.models.encoders.TfIdfEncoder",
+}
 
 
 class Encoder(nn.Module):
@@ -24,14 +27,11 @@ class Encoder(nn.Module):
         raise NotImplementedError
 
     @classmethod
-    def from_config(cls,
-                    encoder_type_: str,
-                    *args,
-                    **kwargs) -> Encoder:
+    def from_config(cls, encoder_type_: str, *args, **kwargs) -> Encoder:
         try:
             callable_path = ENCODER_models[encoder_type_]
-            parts = callable_path.split('.')
-            module_name = '.'.join(parts[:-1])
+            parts = callable_path.split(".")
+            module_name = ".".join(parts[:-1])
             class_name = parts[-1]
         except KeyError:
             raise KeyError(f'Encoder "{encoder_type_}" is not implemented.')

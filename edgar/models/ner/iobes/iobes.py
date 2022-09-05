@@ -13,10 +13,12 @@ from edgar.models.ner import NERDecoder
 
 logger = logging.getLogger(__name__)
 
-IOBES_DECODER: Dict = {"linear": "edgar.models.ner.iobes.Linear",
-                       "crf": "edgar.models.ner.iobes.CRF",
-                       "rnn": "edgar.models.ner.iobes.RNN",
-                       "transformer": "edgar.models.ner.iobes.NERTransformer"}
+IOBES_DECODER: Dict = {
+    "linear": "edgar.models.ner.iobes.Linear",
+    "crf": "edgar.models.ner.iobes.CRF",
+    "rnn": "edgar.models.ner.iobes.RNN",
+    "transformer": "edgar.models.ner.iobes.NERTransformer",
+}
 
 
 def iobes2iob(iobes):
@@ -74,16 +76,18 @@ def iobes2pred(batch, vocab):
 
 
 class IobesNERDecoder(NERDecoder):
-    def __init__(self,
-                 input_dim: int,
-                 labels: Labels,
-                 decoding_params: Dict,
-                 use_cls: bool = False,
-                 span_len_embedding_dim: int = 25,
-                 max_span_len: int = 100,
-                 loss_weight: float = 1.,
-                 pooling_fn: str = 'max',
-                 use_ner_hidden_states: bool = False):
+    def __init__(
+        self,
+        input_dim: int,
+        labels: Labels,
+        decoding_params: Dict,
+        use_cls: bool = False,
+        span_len_embedding_dim: int = 25,
+        max_span_len: int = 100,
+        loss_weight: float = 1.0,
+        pooling_fn: str = "max",
+        use_ner_hidden_states: bool = False,
+    ):
         super().__init__()
         self.labels = labels
         self.loss_weight = loss_weight
@@ -95,9 +99,9 @@ class IobesNERDecoder(NERDecoder):
         # init entity pooling function
         self.pooling_fn = pooling_fn
         if pooling_fn == "rnn_local":
-            self.pooling_layer = PoolingRNNLocal(nn.GRU(
-                input_dim, int(input_dim / 2), bidirectional=True, batch_first=True
-            ))
+            self.pooling_layer = PoolingRNNLocal(
+                nn.GRU(input_dim, int(input_dim / 2), bidirectional=True, batch_first=True)
+            )
         elif pooling_fn == "attention":
             self.pooling_layer = nn.Linear(input_dim, 1)
         else:
@@ -117,14 +121,14 @@ class IobesNERDecoder(NERDecoder):
         self.use_ner_hidden_states = use_ner_hidden_states
 
     def forward(self, batch: Dict):
-        word_embeddings = batch['word_embeddings']
-        pad_mask = get_padding_mask(batch['n_words'], device=get_device())
+        word_embeddings = batch["word_embeddings"]
+        pad_mask = get_padding_mask(batch["n_words"], device=get_device())
 
         # Decode label sequence
         if self.training and batch["entities_anno_iobes_ids"] is not None:
-            label_ids = batch['entities_anno_iobes_ids'].to(get_device())
+            label_ids = batch["entities_anno_iobes_ids"].to(get_device())
             output: Dict = self.decoder(word_embeddings, label_ids, pad_mask)
-            logits = output['logits']
+            logits = output["logits"]
 
             batch["ner_logits"] = logits
             batch["ner_output"] = torch.argmax(logits, dim=-1)
@@ -138,23 +142,26 @@ class IobesNERDecoder(NERDecoder):
                 for span, entity in sentence.items():
                     start, end = span
                     # get most common class index of predicted entity range
-                    most_common_index = Counter(batch['ner_output'][i, start:end].tolist()).most_common(1)[0][0]
+                    most_common_index = Counter(batch["ner_output"][i, start:end].tolist()).most_common(1)[0][0]
 
                     # calculate entity score as mean of individual word probabilities
-                    entity_score = torch.softmax(batch["ner_logits"][i, start:end, :],
-                                                 dim=-1)[:, most_common_index].mean().item()
+                    entity_score = (
+                        torch.softmax(batch["ner_logits"][i, start:end, :], dim=-1)[:, most_common_index].mean().item()
+                    )
                     ner_scores.append(entity_score)
                 batch_ner_scores.append(ner_scores)
 
             batch["ner_score"] = batch_ner_scores
-            batch['ner_loss'] = self.compute_loss(batch) if 'loss' not in output else output['loss']
+            batch["ner_loss"] = self.compute_loss(batch) if "loss" not in output else output["loss"]
 
         else:
             output: Dict = self.decoder.decode(word_embeddings, pad_mask)
-            logits = output['logits']
+            logits = output["logits"]
 
             batch["ner_logits"] = logits
-            batch["ner_output"] = torch.argmax(logits, dim=-1) if 'best_sequences' not in output else output['best_sequences']
+            batch["ner_output"] = (
+                torch.argmax(logits, dim=-1) if "best_sequences" not in output else output["best_sequences"]
+            )
 
             # msg = '\n'
             # for seq in batch["ner_output"]:
@@ -177,7 +184,7 @@ class IobesNERDecoder(NERDecoder):
                 ner_scores = []
                 for span, entity in sentence.items():
                     start, end = span
-                    if 'probs' in output:
+                    if "probs" in output:
                         probs = output["probs"][i, start:end]
                     else:
                         probs = torch.softmax(batch["ner_logits"][i, start:end, :], dim=-1).max(dim=-1).values
@@ -193,7 +200,7 @@ class IobesNERDecoder(NERDecoder):
         all_filtered_span_ids = []
         for b in range(batch_size):
             if self.training:
-                entities_anno = {(ent['start'], ent['end']): ent['type_'] for ent in batch["entities_anno"][b]}
+                entities_anno = {(ent["start"], ent["end"]): ent["type_"] for ent in batch["entities_anno"][b]}
                 entities_combined = entities_anno
             else:
                 entities_combined = batch["entities_pred"][b]
@@ -204,18 +211,18 @@ class IobesNERDecoder(NERDecoder):
         max_n_spans = max(n_spans)
         span_representations = torch.zeros((batch_size, max_n_spans, self.input_dim), device=get_device())
 
-        if 'hidden_states' in output and self.use_ner_hidden_states:
-            batch['re_embeddings'] = output['hidden_states']
+        if "hidden_states" in output and self.use_ner_hidden_states:
+            batch["re_embeddings"] = output["hidden_states"]
         else:
-            batch['re_embeddings'] = batch["word_embeddings"]
+            batch["re_embeddings"] = batch["word_embeddings"]
 
         for b in range(batch_size):
             for i, (start, end) in enumerate(all_filtered_span_ids[b]):
                 if end - start <= self.max_span_len:
                     span_representation = word2entity_embedding(
-                        word_embeddings=batch["re_embeddings"][b, start: end, :],
+                        word_embeddings=batch["re_embeddings"][b, start:end, :],
                         pooling=self.pooling_fn,
-                        pooling_layer=self.pooling_layer
+                        pooling_layer=self.pooling_layer,
                     )
 
                     # Concat span length embedding
@@ -225,7 +232,7 @@ class IobesNERDecoder(NERDecoder):
 
                     # Concat CLS
                     if self.use_cls:
-                        span_representation = torch.cat([span_representation, batch['cls_embedding'][b]], -1)
+                        span_representation = torch.cat([span_representation, batch["cls_embedding"][b]], -1)
 
                     span_representations[b, i] = span_representation
 
@@ -249,14 +256,11 @@ class IobesNERDecoder(NERDecoder):
         return masked_loss.sum() / loss_mask.sum()
 
     @classmethod
-    def from_config(cls,
-                    type_: str,
-                    *args,
-                    **kwargs) -> nn.Module:
+    def from_config(cls, type_: str, *args, **kwargs) -> nn.Module:
         try:
             callable_path = IOBES_DECODER[type_]
-            parts = callable_path.split('.')
-            module_name = '.'.join(parts[:-1])
+            parts = callable_path.split(".")
+            module_name = ".".join(parts[:-1])
             class_name = parts[-1]
         except KeyError:
             raise KeyError(f'IOBES Decoder "{type_}" is not implemented.')

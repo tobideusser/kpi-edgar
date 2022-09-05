@@ -14,25 +14,27 @@ logger = logging.getLogger(__name__)
 class RNN(nn.Module):
     """RNN Decoder to sequentially tag NER tags."""
 
-    def __init__(self,
-                 labels: Labels,
-                 label_embedding_dim: int,
-                 input_dim: int,
-                 dropout: float,
-                 label_masking: bool = True,
-                 add_bos: bool = True,
-                 model: str = 'gru',
-                 combine_inputs: str = 'cat',  # 'add'
-                 num_beams: Optional[int] = 1):
+    def __init__(
+        self,
+        labels: Labels,
+        label_embedding_dim: int,
+        input_dim: int,
+        dropout: float,
+        label_masking: bool = True,
+        add_bos: bool = True,
+        model: str = "gru",
+        combine_inputs: str = "cat",  # 'add'
+        num_beams: Optional[int] = 1,
+    ):
         super().__init__()
 
         self.labels = labels
 
-        if combine_inputs == 'cat':
+        if combine_inputs == "cat":
             rnn_hidden_dim = label_embedding_dim + input_dim
             self.combine_inputs = torch.cat
             self.label_embedding_dim = label_embedding_dim
-        elif combine_inputs == 'add':
+        elif combine_inputs == "add":
             self.label_embedding_dim = input_dim
             self.combine_inputs = lambda x, dim: torch.add(x[0], x[1])
             rnn_hidden_dim = input_dim
@@ -49,7 +51,7 @@ class RNN(nn.Module):
             self.label_embeddings = nn.Embedding(num_embeddings, self.label_embedding_dim)
         # use "O" (outside) tag as start embedding
         else:
-            self.bos_tag_id = self.labels.iobes.val2idx['O']
+            self.bos_tag_id = self.labels.iobes.val2idx["O"]
             self.label_embeddings = nn.Embedding(self.num_labels, self.label_embedding_dim)
         self.label_masking = label_masking
 
@@ -60,9 +62,9 @@ class RNN(nn.Module):
 
         # rnn layer
         self.model_type = model
-        if model == 'gru':
+        if model == "gru":
             self.rnn = nn.GRU(rnn_hidden_dim, input_dim, batch_first=True)
-        elif model == 'lstm':
+        elif model == "lstm":
             self.rnn = nn.LSTM(rnn_hidden_dim, input_dim, batch_first=True)
         else:
             raise NotImplementedError
@@ -80,15 +82,17 @@ class RNN(nn.Module):
             try:
                 label_name = self.labels.iobes.idx2val[label_id[i].item()]
             except KeyError:
-                label_name = '[BOS]'
+                label_name = "[BOS]"
 
-            if label_name.startswith(('[BOS]', 'O', 'E', 'S')):
-                masked_ids = [key for key, value in self.labels.iobes.idx2val.items()
-                              if not value.startswith(('O', 'B', 'S'))]
+            if label_name.startswith(("[BOS]", "O", "E", "S")):
+                masked_ids = [
+                    key for key, value in self.labels.iobes.idx2val.items() if not value.startswith(("O", "B", "S"))
+                ]
             else:
-                tag = label_name.split('-')[-1]
-                masked_ids = [key for key, value in self.labels.iobes.idx2val.items()
-                              if value not in [f'I-{tag}', f'E-{tag}']]
+                tag = label_name.split("-")[-1]
+                masked_ids = [
+                    key for key, value in self.labels.iobes.idx2val.items() if value not in [f"I-{tag}", f"E-{tag}"]
+                ]
 
             # # 1: normal token, 0: pad token -> if pad token: predict as O tag
             # if not pad_mask[i]:
@@ -111,11 +115,13 @@ class RNN(nn.Module):
         label_embeddings_shifted = torch.cat([bos_embedding, label_embeddings], dim=1)[:, :-1, :]
         label_ids_shifted = torch.cat([bos_id, label_ids], dim=1)[:, :-1]
 
-        if self.model_type == 'gru':
+        if self.model_type == "gru":
             hidden = torch.zeros(1, batch_size, self.hidden_dim).to(get_device())
-        elif self.model_type == 'lstm':
-            hidden = (torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
-                      torch.zeros(1, batch_size, self.hidden_dim).to(get_device()))
+        elif self.model_type == "lstm":
+            hidden = (
+                torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
+                torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
+            )
         else:
             raise NotImplementedError
 
@@ -143,7 +149,7 @@ class RNN(nn.Module):
         logits = torch.cat(logits, dim=1)
         hidden_states = torch.cat(hidden_states, dim=1)
 
-        return {'logits': logits, 'hidden_states': hidden_states}
+        return {"logits": logits, "hidden_states": hidden_states}
 
     def decode(self, word_embeddings: torch.Tensor, pad_mask: torch.Tensor):
         return self.decoding_fn(word_embeddings, pad_mask)
@@ -160,11 +166,13 @@ class RNN(nn.Module):
         label_embeddings_shifted = bos_embedding
         label_ids_shifted = bos_id
 
-        if self.model_type == 'gru':
+        if self.model_type == "gru":
             hidden = torch.zeros(1, batch_size, self.hidden_dim).to(get_device())
-        elif self.model_type == 'lstm':
-            hidden = (torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
-                      torch.zeros(1, batch_size, self.hidden_dim).to(get_device()))
+        elif self.model_type == "lstm":
+            hidden = (
+                torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
+                torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
+            )
         else:
             raise NotImplementedError
 
@@ -190,14 +198,15 @@ class RNN(nn.Module):
 
             probs = torch.softmax(logit, dim=-1)
             pred_label_id = torch.argmax(probs, dim=-1)
-            label_embeddings_shifted = torch.cat([label_embeddings_shifted,
-                                                  self.label_embeddings(pred_label_id)], dim=1)
+            label_embeddings_shifted = torch.cat(
+                [label_embeddings_shifted, self.label_embeddings(pred_label_id)], dim=1
+            )
             label_ids_shifted = torch.cat([label_ids_shifted, pred_label_id], dim=1)
 
         logits = torch.cat(logits, dim=1)
         hidden_states = torch.cat(hidden_states, dim=1)
 
-        return {'logits': logits, 'hidden_states': hidden_states}
+        return {"logits": logits, "hidden_states": hidden_states}
 
     def beam_search(self, word_embeddings: torch.Tensor, pad_mask: torch.Tensor):
 
@@ -217,11 +226,13 @@ class RNN(nn.Module):
         label_embeddings_shifted = bos_embedding
         label_ids_shifted = bos_id
 
-        if self.model_type == 'gru':
+        if self.model_type == "gru":
             hidden = torch.zeros(1, batch_size, self.hidden_dim).to(get_device())
-        elif self.model_type == 'lstm':
-            hidden = (torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
-                      torch.zeros(1, batch_size, self.hidden_dim).to(get_device()))
+        elif self.model_type == "lstm":
+            hidden = (
+                torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
+                torch.zeros(1, batch_size, self.hidden_dim).to(get_device()),
+            )
         else:
             raise NotImplementedError
 
@@ -263,15 +274,19 @@ class RNN(nn.Module):
             # reshape for beam search
             next_scores = next_scores.view(batch_size, self.num_beams * self.num_labels)
 
-            next_scores, next_tokens = torch.topk(
-                next_scores, 2 * self.num_beams, dim=1, largest=True, sorted=True
-            )
+            next_scores, next_tokens = torch.topk(next_scores, 2 * self.num_beams, dim=1, largest=True, sorted=True)
             next_indices = (next_tokens / self.num_labels).long()
             next_tokens = next_tokens % self.num_labels
 
-            next_beam_scores = torch.zeros((batch_size, self.num_beams), dtype=next_scores.dtype, device=word_embeddings.device)
-            next_beam_tokens = torch.zeros((batch_size, self.num_beams), dtype=next_tokens.dtype, device=word_embeddings.device)
-            next_beam_indices = torch.zeros((batch_size, self.num_beams), dtype=next_indices.dtype, device=word_embeddings.device)
+            next_beam_scores = torch.zeros(
+                (batch_size, self.num_beams), dtype=next_scores.dtype, device=word_embeddings.device
+            )
+            next_beam_tokens = torch.zeros(
+                (batch_size, self.num_beams), dtype=next_tokens.dtype, device=word_embeddings.device
+            )
+            next_beam_indices = torch.zeros(
+                (batch_size, self.num_beams), dtype=next_indices.dtype, device=word_embeddings.device
+            )
 
             for batch_idx in range(batch_size):
 
@@ -284,7 +299,7 @@ class RNN(nn.Module):
 
                 beam_idx = 0
                 for (next_token, next_score, next_index) in zip(
-                        next_tokens[batch_idx], next_scores[batch_idx], next_indices[batch_idx]
+                    next_tokens[batch_idx], next_scores[batch_idx], next_indices[batch_idx]
                 ):
                     batch_beam_idx = batch_idx * self.num_beams + next_index
 
@@ -301,18 +316,25 @@ class RNN(nn.Module):
             # input_ids = torch.cat([input_ids[next_beam_indices, :], next_beam_tokens.unsqueeze(-1)], dim=-1)
 
             # pred_label_id = torch.argmax(probs, dim=-1)
-            label_embeddings_shifted = torch.cat([label_embeddings_shifted[next_beam_indices, :],
-                                                  self.label_embeddings(next_beam_tokens.unsqueeze(-1))],
-                                                 dim=-2).view(batch_beam_size, -1, self.label_embedding_dim)
-            label_ids_shifted = torch.cat([label_ids_shifted[next_beam_indices, :],
-                                           next_beam_tokens.unsqueeze(-1)],
-                                          dim=-1).view(batch_beam_size, -1)
+            label_embeddings_shifted = torch.cat(
+                [label_embeddings_shifted[next_beam_indices, :], self.label_embeddings(next_beam_tokens.unsqueeze(-1))],
+                dim=-2,
+            ).view(batch_beam_size, -1, self.label_embedding_dim)
+            label_ids_shifted = torch.cat(
+                [label_ids_shifted[next_beam_indices, :], next_beam_tokens.unsqueeze(-1)], dim=-1
+            ).view(batch_beam_size, -1)
 
-            log_scores = torch.cat([log_scores[next_beam_indices, :].view(batch_beam_size, -1),
-                                    torch.gather(next_log_scores[next_beam_indices, :].view(batch_beam_size, -1),
-                                                 dim=-1,
-                                                 index=next_beam_tokens.view(-1, 1))
-                                    ], dim=-1)
+            log_scores = torch.cat(
+                [
+                    log_scores[next_beam_indices, :].view(batch_beam_size, -1),
+                    torch.gather(
+                        next_log_scores[next_beam_indices, :].view(batch_beam_size, -1),
+                        dim=-1,
+                        index=next_beam_tokens.view(-1, 1),
+                    ),
+                ],
+                dim=-1,
+            )
 
         # cut off bos token from sequences and reshape
         label_ids_shifted = label_ids_shifted[:, 1:].view(batch_size, self.num_beams, -1)
@@ -322,13 +344,16 @@ class RNN(nn.Module):
         # collect beam hypotheses
         beam_hypotheses = []
         for scores, beams, beam_probs in zip(beam_scores, label_ids_shifted, probs):
-            beam_hypotheses.append([(score.item(), beam, marginals)
-                                    for score, beam, marginals in zip(scores, beams, beam_probs)])
+            beam_hypotheses.append(
+                [(score.item(), beam, marginals) for score, beam, marginals in zip(scores, beams, beam_probs)]
+            )
 
         # select the best hypotheses
         best_sequences = []
         best_marginals = []
-        best_scores = torch.zeros(batch_size * self.num_beam_hyps_to_keep, device=word_embeddings.device, dtype=torch.float32)
+        best_scores = torch.zeros(
+            batch_size * self.num_beam_hyps_to_keep, device=word_embeddings.device, dtype=torch.float32
+        )
 
         # retrieve best hypotheses
         for i, beam_hyp in enumerate(beam_hypotheses):
@@ -349,8 +374,12 @@ class RNN(nn.Module):
 
         hidden_states = torch.cat(hidden_states, dim=1)
 
-        return {'logits': torch.zeros((batch_size, seq_len, self.num_labels), device=word_embeddings.device, dtype=torch.float32),
-                'probs': best_marginals,
-                'scores': best_scores,
-                'best_sequences': best_sequences,
-                'hidden_states': hidden_states}
+        return {
+            "logits": torch.zeros(
+                (batch_size, seq_len, self.num_labels), device=word_embeddings.device, dtype=torch.float32
+            ),
+            "probs": best_marginals,
+            "scores": best_scores,
+            "best_sequences": best_sequences,
+            "hidden_states": hidden_states,
+        }

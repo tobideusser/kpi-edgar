@@ -1,26 +1,24 @@
 import logging
 from typing import Dict
 
-from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 import torch
-import torch.nn as nn
 
-from edgar.trainer.utils import get_device
 from edgar.models.encoders import Encoder
-
+from edgar.trainer.utils import get_device
 
 logger = logging.getLogger(__name__)
 
 
 class GloveEncoder(Encoder):
-    def __init__(self,
-                 path_embedding: str,
-                 embedding_dim: int = 200,
-                 oov_vector: str = "random", # how should the out of vocabulary(oov) word should be handled
-                 seed: int = 100,
-                 word_pooling: str = None
-                 ):
+    def __init__(
+        self,
+        path_embedding: str,
+        embedding_dim: int = 200,
+        oov_vector: str = "random",  # how should the out of vocabulary(oov) word should be handled
+        seed: int = 100,
+        word_pooling: str = None,
+    ):
         super().__init__()
 
         self.emb_dim = embedding_dim
@@ -49,10 +47,10 @@ class GloveEncoder(Encoder):
                 # if the word is present in edgarW2v model then take embeddings else embedding of oov
                 if word_value in self.encoder:
                     emb = torch.from_numpy(np.copy(self.encoder[word_value]))
-                    word_embedding_list.append(emb.reshape((1,-1)))
+                    word_embedding_list.append(emb.reshape((1, -1)))
                 else:
                     emb = torch.from_numpy(np.copy(self.encoder["oov"]))
-                    word_embedding_list.append(emb.reshape((1,-1)))
+                    word_embedding_list.append(emb.reshape((1, -1)))
             # creating a tensor of zeros to make all word embedding vectors of equal batch length
             num_rows = max_word_batch - len_word_list
             if num_rows == 0:
@@ -79,7 +77,7 @@ class GloveEncoder(Encoder):
 
         print("Loading Glove Model")
         glove_model = {}
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             for line in f:
                 split_line = line.split()
                 word = split_line[0]
@@ -88,11 +86,12 @@ class GloveEncoder(Encoder):
         print(f"{len(glove_model)} words loaded!")
         return glove_model
 
+
 # https://stackoverflow.com/questions/37793118/load-pretrained-glove-vectors-in-python
-def load_glove_model(File):
+def load_glove_model(file):
     print("Loading Glove Model")
     glove_model = {}
-    with open(File,'r') as f:
+    with open(file, "r") as f:
         for line in f:
             split_line = line.split()
             word = split_line[0]
@@ -100,6 +99,7 @@ def load_glove_model(File):
             glove_model[word] = embedding
     print(f"{len(glove_model)} words loaded!")
     return glove_model
+
 
 if __name__ == "__main__":
     # this is slow because it is converting everything in its vector format
