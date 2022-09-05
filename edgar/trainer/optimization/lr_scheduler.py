@@ -5,14 +5,14 @@ from typing import Dict, Any, Optional
 import torch
 
 
-LR_SCHEDULERS = {'exponential': 'torch.optim.lr_scheduler.ExponentialLR',
-                 'lin_warmup': 'transformers.get_linear_schedule_with_warmup'}
+LR_SCHEDULERS = {
+    "exponential": "torch.optim.lr_scheduler.ExponentialLR",
+    "lin_warmup": "transformers.get_linear_schedule_with_warmup",
+}
 
 
 class LearningRateScheduler:
-    def __init__(self,
-                 lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
-                 interval: str = 'epoch') -> None:
+    def __init__(self, lr_scheduler: torch.optim.lr_scheduler._LRScheduler, interval: str = "epoch") -> None:
         self.lr_scheduler = lr_scheduler
         self.use_metric = True if isinstance(lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau) else False
         self.interval = interval
@@ -32,14 +32,11 @@ class LearningRateScheduler:
         self.lr_scheduler.load_state_dict(state_dict)
 
     @classmethod
-    def from_config(cls,
-                    type_: str,
-                    optimizer: torch.optim.Optimizer,
-                    **kwargs):
+    def from_config(cls, type_: str, optimizer: torch.optim.Optimizer, **kwargs):
         try:
             callable_path = LR_SCHEDULERS[type_]
-            parts = callable_path.split('.')
-            module_name = '.'.join(parts[:-1])
+            parts = callable_path.split(".")
+            module_name = ".".join(parts[:-1])
             class_name = parts[-1]
         except KeyError:
             raise KeyError(f'{cls.__name__} "{type_}" is not implemented.')
@@ -50,7 +47,7 @@ class LearningRateScheduler:
         expected_scheduler_args = inspect.signature(class_).parameters.keys()
         scheduler_kwargs = {name: value for name, value in kwargs.items() if name in expected_scheduler_args}
 
-        interval = kwargs.pop('interval', 'epoch')
+        interval = kwargs.pop("interval", "epoch")
         lr_scheduler = class_(optimizer=optimizer, **scheduler_kwargs)
 
         return cls(lr_scheduler=lr_scheduler, interval=interval)

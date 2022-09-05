@@ -24,9 +24,7 @@ class MetricTracker:
         then you have to specify it here.
     """
 
-    def __init__(
-            self, patience: Optional[int] = None, metric_name: str = None, should_decrease: bool = None
-    ) -> None:
+    def __init__(self, patience: Optional[int] = None, metric_name: str = None, should_decrease: bool = None) -> None:
         self._best_so_far: Optional[float] = None
         self._patience = patience
         self._epochs_with_no_improvement = 0
@@ -39,9 +37,7 @@ class MetricTracker:
         # If the metric name starts with "-", we want it to decrease.
         # We also allow you to not specify a metric name and just set `should_decrease` directly.
         if should_decrease is not None and metric_name is not None:
-            raise ValueError(
-                "must specify either `should_decrease` or `metric_name` (but not both)"
-            )
+            raise ValueError("must specify either `should_decrease` or `metric_name` (but not both)")
         elif metric_name is not None:
             if metric_name[0] == "-":
                 self._should_decrease = True
@@ -52,9 +48,7 @@ class MetricTracker:
         elif should_decrease is not None:
             self._should_decrease = should_decrease
         else:
-            raise ValueError(
-                "must specify either `should_decrease` or `metric_name` (but not both)"
-            )
+            raise ValueError("must specify either `should_decrease` or `metric_name` (but not both)")
 
     def clear(self) -> None:
         """
@@ -99,9 +93,9 @@ class MetricTracker:
         Record a new value of the metric and update the various things that depend on it.
         """
         new_best = (
-                (self._best_so_far is None)
-                or (self._should_decrease and metric < self._best_so_far)
-                or (not self._should_decrease and metric > self._best_so_far)
+            (self._best_so_far is None)
+            or (self._should_decrease and metric < self._best_so_far)
+            or (not self._should_decrease and metric > self._best_so_far)
         )
 
         if new_best:

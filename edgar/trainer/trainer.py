@@ -14,24 +14,24 @@ logger = logging.getLogger(__name__)
 
 
 class Trainer:
-
-    def __init__(self,
-                 model: nn.Module,
-                 optimizer: torch.optim.Optimizer,
-                 train_dataloader: DataLoader,
-                 evaluator: Optional[Evaluator] = None,
-                 valid_dataloader: Optional[DataLoader] = None,
-                 lr_scheduler: Optional[LearningRateScheduler] = None,
-                 checkpointer: Optional[Checkpointer] = None,
-                 train_logger: Optional[TrainLogger] = None,  # e.g. WandBLogger or TensorboardLogger
-                 unique_config: Optional[Dict] = None,
-                 num_epochs: int = 10,
-                 valid_metric: str = '-loss',
-                 early_stopping_patience: Optional[int] = None,
-                 num_grad_accumulation_steps: int = 1,
-                 grad_norm: Optional[float] = None,
-                 grad_clipping: Optional[float] = None
-                 ):
+    def __init__(
+        self,
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        train_dataloader: DataLoader,
+        evaluator: Optional[Evaluator] = None,
+        valid_dataloader: Optional[DataLoader] = None,
+        lr_scheduler: Optional[LearningRateScheduler] = None,
+        checkpointer: Optional[Checkpointer] = None,
+        train_logger: Optional[TrainLogger] = None,  # e.g. WandBLogger or TensorboardLogger
+        unique_config: Optional[Dict] = None,
+        num_epochs: int = 10,
+        valid_metric: str = "-loss",
+        early_stopping_patience: Optional[int] = None,
+        num_grad_accumulation_steps: int = 1,
+        grad_norm: Optional[float] = None,
+        grad_clipping: Optional[float] = None,
+    ):
         self._model = model
         self._optimizer = optimizer
         self._train_dataloader = train_dataloader
@@ -54,23 +54,23 @@ class Trainer:
 
     def _valid_batch(self, batch) -> Dict:
         output = self._model.predict(batch)
-        output['loss'] = output['loss'].item()
+        output["loss"] = output["loss"].item()
         output = detach_batch(output)
         torch.cuda.empty_cache()
         return output
 
     def _train_batch(self, batch, step: int) -> Dict:
         output = self._model(batch)
-        loss = output['loss']
+        loss = output["loss"]
         loss = loss / self._num_grad_accumulation_steps
         loss.backward()
-        output['loss'] = loss.item()
+        output["loss"] = loss.item()
         if step % self._num_grad_accumulation_steps == 0:
             # scales gradiens if grad_norm is set
             # TODO: returned batch_grad_norm could be included in model logging
             self._rescale_gradients()
             self._optimizer.step()
-            if self._lr_scheduler and self._lr_scheduler.interval == 'step':
+            if self._lr_scheduler and self._lr_scheduler.interval == "step":
                 self._lr_scheduler.step()
             self._optimizer.zero_grad()
         output = detach_batch(output)
@@ -85,7 +85,7 @@ class Trainer:
         set_seeds()
         for step, batch in enumerate(tqdm(self._train_dataloader), 1):
             batch_output: Dict = self._train_batch(batch=batch, step=step)
-            loss = batch_output['loss']
+            loss = batch_output["loss"]
             train_loss += loss
 
             if self._evaluator:
@@ -94,7 +94,7 @@ class Trainer:
         if self._evaluator:
             train_metrics: Dict[str, Any] = self._evaluator.get_metrics(reset=True)
         num_train_batches = len(self._train_dataloader) if len(self._train_dataloader) > 0 else 1
-        train_metrics['loss'] = train_loss / num_train_batches
+        train_metrics["loss"] = train_loss / num_train_batches
 
         return train_metrics
 
@@ -106,7 +106,7 @@ class Trainer:
         set_seeds()
         for batch in tqdm(self._valid_dataloader):
             batch_output: Dict = self._valid_batch(batch=batch)
-            loss = batch_output.get('loss')
+            loss = batch_output.get("loss")
             if loss is not None:
                 valid_loss += loss
             if self._evaluator:
@@ -115,13 +115,13 @@ class Trainer:
         if self._evaluator:
             valid_metrics: Dict[str, Any] = self._evaluator.get_metrics(reset=True)
         num_valid_batches = len(self._valid_dataloader) if len(self._valid_dataloader) > 0 else 1
-        valid_metrics['loss'] = valid_loss / num_valid_batches
+        valid_metrics["loss"] = valid_loss / num_valid_batches
 
         return valid_metrics
 
     def train(self, warm_start: bool = True):
 
-        logger.info('Starting training.')
+        logger.info("Starting training.")
 
         valid_metrics: Dict[str, float] = {}
         this_epoch_val_metric: float = 0.0
@@ -132,7 +132,7 @@ class Trainer:
         self._enable_gradient_clipping()
 
         while self.current_epoch <= self._num_epochs:
-            logger.info(f'Epoch {self.current_epoch}:\n')
+            logger.info(f"Epoch {self.current_epoch}:\n")
 
             train_metrics = self._train_epoch()
             if self._valid_dataloader is not None:
@@ -144,7 +144,7 @@ class Trainer:
                     self.metric_tracker.add_metric(this_epoch_val_metric)
 
                     if self.metric_tracker.should_stop_early():
-                        logger.info('Ran out of patience. Stopping training.')
+                        logger.info("Ran out of patience. Stopping training.")
                         break
 
             # Create overall metrics dict
@@ -167,30 +167,33 @@ class Trainer:
             if self.metric_tracker.is_best_so_far():
                 # Update all the best_ metrics.
                 # (Otherwise they just stay the same as they were.)
-                metrics['best_epoch'] = self.current_epoch
+                metrics["best_epoch"] = self.current_epoch
                 for key, value in valid_metrics.items():
-                    metrics['best_validation_' + key] = value
+                    metrics["best_validation_" + key] = value
 
                 self.metric_tracker.best_epoch_metrics = valid_metrics
 
             if self._train_logger:
                 if self.current_epoch == 1:
-                    self._train_logger.log_hyperparams(params=self._unique_config,
-                                                       metrics={f'best_validation_{k}': v
-                                                                for k, v in valid_metrics.items()})
+                    self._train_logger.log_hyperparams(
+                        params=self._unique_config,
+                        metrics={f"best_validation_{k}": v for k, v in valid_metrics.items()},
+                    )
                 self._train_logger.log_metrics(metrics=metrics, step=self.current_epoch)
                 # TODO: Convert metrics to clf report
                 # self._train_logger.log_clf_report(metrics=metrics, step=self.current_epoch)
 
-            if self._lr_scheduler and self._lr_scheduler.interval == 'epoch':
+            if self._lr_scheduler and self._lr_scheduler.interval == "epoch":
                 self._lr_scheduler.step(metric=this_epoch_val_metric)
 
             if self._checkpointer is not None:
                 model_state, training_state = self._get_checkpoint_state()
-                self._checkpointer.save_checkpoint(model_state=model_state,
-                                                   training_state=training_state,
-                                                   epoch=self.current_epoch,
-                                                   is_best_so_far=self.metric_tracker.is_best_so_far())
+                self._checkpointer.save_checkpoint(
+                    model_state=model_state,
+                    training_state=training_state,
+                    epoch=self.current_epoch,
+                    is_best_so_far=self.metric_tracker.is_best_so_far(),
+                )
             self.current_epoch += 1
 
     def _enable_gradient_clipping(self) -> None:
@@ -222,14 +225,14 @@ class Trainer:
 
         # These are the training states we need to persist.
         training_state = {
-            'metric_tracker': self.metric_tracker.state_dict(),
-            'optimizer': self._optimizer.state_dict(),
-            'epoch': self.current_epoch,
+            "metric_tracker": self.metric_tracker.state_dict(),
+            "optimizer": self._optimizer.state_dict(),
+            "epoch": self.current_epoch,
         }
 
         # If we have a learning rate, we should persist it too.
         if self._lr_scheduler is not None:
-            training_state['lr_scheduler'] = self._lr_scheduler.state_dict()
+            training_state["lr_scheduler"] = self._lr_scheduler.state_dict()
 
         return model_state, training_state
 
@@ -258,17 +261,17 @@ class Trainer:
             return 1
 
         self._model.load_state_dict(model_state)
-        self._optimizer.load_state_dict(training_state['optimizer'])
-        if self._lr_scheduler is not None and 'lr_scheduler' in training_state:
-            self._lr_scheduler.load_state_dict(training_state['lr_scheduler'])
+        self._optimizer.load_state_dict(training_state["optimizer"])
+        if self._lr_scheduler is not None and "lr_scheduler" in training_state:
+            self._lr_scheduler.load_state_dict(training_state["lr_scheduler"])
 
         # TODO: Move optimizer to cuda?
         # training_util.move_optimizer_to_cuda(self.optimizer)
 
-        if 'metric_tracker' in training_state:
-            self.metric_tracker.load_state_dict(training_state['metric_tracker'])
+        if "metric_tracker" in training_state:
+            self.metric_tracker.load_state_dict(training_state["metric_tracker"])
 
-        epoch_to_return = training_state['epoch'] + 1
+        epoch_to_return = training_state["epoch"] + 1
 
         return epoch_to_return
 

@@ -12,8 +12,7 @@ from edgar.data_classes import Corpus, Sentence, Relation, Entity
 
 
 def _store_examples(examples: List[Dict], file_path: str, template: str):
-    template_path = os.path.join(package_path, 'html_creation',
-                                 'html_result_templates', template)
+    template_path = os.path.join(package_path, "html_creation", "html_result_templates", template)
 
     # read template
     with open(template_path) as f:
@@ -27,23 +26,17 @@ def _compute_metrics(gt_all: List[str], pred_all: List[str]):
 
     labels = list(set(gt_all) | set(pred_all))
 
-    micro = prfs(gt_all, pred_all, labels=labels, average='micro', zero_division=0)[:-1]
-    macro = prfs(gt_all, pred_all, labels=labels, average='macro', zero_division=0)[:-1]
+    micro = prfs(gt_all, pred_all, labels=labels, average="micro", zero_division=0)[:-1]
+    macro = prfs(gt_all, pred_all, labels=labels, average="macro", zero_division=0)[:-1]
     micro = [m * 100 for m in micro]
     macro = [m * 100 for m in macro]
 
-    clf_report: Dict = classification_report(gt_all,
-                                             pred_all,
-                                             output_dict=True,
-                                             zero_division=0)
+    clf_report: Dict = classification_report(gt_all, pred_all, output_dict=True, zero_division=0)
 
     return micro, macro, clf_report
 
 
-def _score(
-        anno: List[Tuple],
-        pred: List[Tuple]
-):
+def _score(anno: List[Tuple], pred: List[Tuple]):
 
     gt_flat = []
     pred_flat = []
@@ -79,9 +72,18 @@ def _relation_to_html(relation: Tuple, sentence: List[str]) -> str:
         e1_end, e2_end = head_end, tail_end
         e1_tag, e2_tag = head_tag, tail_tag
     else:
-        e1_start, e2_start = tail_start, head_start,
-        e1_end, e2_end = tail_end, head_end,
-        e1_tag, e2_tag = tail_tag, head_tag,
+        e1_start, e2_start = (
+            tail_start,
+            head_start,
+        )
+        e1_end, e2_end = (
+            tail_end,
+            head_end,
+        )
+        e1_tag, e2_tag = (
+            tail_tag,
+            head_tag,
+        )
 
     ctx_before = " ".join(sentence[:e1_start])
     ent1 = " ".join(sentence[e1_start:e1_end])
@@ -89,7 +91,7 @@ def _relation_to_html(relation: Tuple, sentence: List[str]) -> str:
     ent2 = " ".join(sentence[e2_start:e2_end])
     ctx_after = " ".join(sentence[e2_end:])
 
-    html = f'{ctx_before}{e1_tag}{ent1}</span> {ctx_between}{e2_tag}{ent2}</span> {ctx_after}'
+    html = f"{ctx_before}{e1_tag}{ent1}</span> {ctx_between}{e2_tag}{ent2}</span> {ctx_after}"
     return html
 
 
@@ -98,9 +100,9 @@ def _entity_to_html(entity: Tuple, sentence: List[str]) -> str:
     start, end = span
 
     # todo: use tokens and word2token_alignment_mask
-    context_before = ' '.join(sentence[:start])
-    ent = ' '.join(sentence[start:end])
-    context_after = ' '.join(sentence[end:])
+    context_before = " ".join(sentence[:start])
+    ent = " ".join(sentence[start:end])
+    context_after = " ".join(sentence[end:])
 
     html = f'{context_before} <span class="entity"><span class="type">{type_}</span>{ent}</span> {context_after}'
     return html
@@ -111,22 +113,36 @@ def _convert_example(
     anno: List[Union[Entity, Relation, None]],
     pred: List[Union[Entity, Relation, None]],
     to_html: Callable,
-    type_: str
+    type_: str,
 ):
     sentence = [word.value for word in sentence]
     anno = anno if anno is not None else []
     pred = pred if pred is not None else []
 
-    if type_ == 'entity':
+    if type_ == "entity":
         anno_t = [(elem_anno.span, elem_anno.type_) for elem_anno in anno]
         pred_t = [(elem_pred.span, elem_pred.type_) for elem_pred in pred]
-    elif type_ == 'relation':
-        anno_t = [(elem_anno.head_entity.span, elem_anno.head_entity.type_,
-                   elem_anno.tail_entity.span, elem_anno.tail_entity.type_,
-                   elem_anno.type_) for elem_anno in anno]
-        pred_t = [(elem_pred.head_entity.span, elem_pred.head_entity.type_,
-                   elem_pred.tail_entity.span, elem_pred.tail_entity.type_,
-                   elem_pred.type_) for elem_pred in pred]
+    elif type_ == "relation":
+        anno_t = [
+            (
+                elem_anno.head_entity.span,
+                elem_anno.head_entity.type_,
+                elem_anno.tail_entity.span,
+                elem_anno.tail_entity.type_,
+                elem_anno.type_,
+            )
+            for elem_anno in anno
+        ]
+        pred_t = [
+            (
+                elem_pred.head_entity.span,
+                elem_pred.head_entity.type_,
+                elem_pred.tail_entity.span,
+                elem_pred.tail_entity.type_,
+                elem_pred.type_,
+            )
+            for elem_pred in pred
+        ]
     else:
         raise NotImplementedError
 
@@ -164,58 +180,75 @@ def _convert_example(
     tp = sorted(tp, key=lambda p: p[-1], reverse=True)
     fp = sorted(fp, key=lambda p: p[-1], reverse=True)
 
-    return {'text': " ".join(sentence),
-            'tp': tp,
-            'fn': fn,
-            'fp': fp,
-            'precision': precision,
-            'recall': recall,
-            'f1': f1,
-            'length': len(sentence)}
+    return {
+        "text": " ".join(sentence),
+        "tp": tp,
+        "fn": fn,
+        "fp": fp,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "length": len(sentence),
+    }
 
 
 def create_html(sentences: List[Sentence], out_dir: str):
     # convert entities to html
-    entity_examples = [_convert_example(sentence=sentence, anno=sentence.entities_anno, pred=sentence.entities_pred,
-                                        to_html=_entity_to_html, type_='entity')
-                       for sentence in tqdm(sentences, desc='Converting entities')]
+    entity_examples = [
+        _convert_example(
+            sentence=sentence,
+            anno=sentence.entities_anno,
+            pred=sentence.entities_pred,
+            to_html=_entity_to_html,
+            type_="entity",
+        )
+        for sentence in tqdm(sentences, desc="Converting entities")
+    ]
 
     # convert relations with entity types to html
-    rel_examples = [_convert_example(sentence=sentence, anno=sentence.relations_anno, pred=sentence.relations_pred,
-                                     to_html=_relation_to_html, type_='relation')
-                    for sentence in tqdm(sentences, desc='Converting relations')]
+    rel_examples = [
+        _convert_example(
+            sentence=sentence,
+            anno=sentence.relations_anno,
+            pred=sentence.relations_pred,
+            to_html=_relation_to_html,
+            type_="relation",
+        )
+        for sentence in tqdm(sentences, desc="Converting relations")
+    ]
 
     # store entities
-    _store_examples(entity_examples,
-                    file_path=os.path.join(out_dir, f'entities.html'),
-                    template='entity_examples.html')
+    _store_examples(entity_examples, file_path=os.path.join(out_dir, f"entities.html"), template="entity_examples.html")
 
-    _store_examples(sorted(entity_examples, key=lambda k: k['length']),
-                    file_path=os.path.join(out_dir, f'entities_sorted.html'),
-                    template='entity_examples.html')
+    _store_examples(
+        sorted(entity_examples, key=lambda k: k["length"]),
+        file_path=os.path.join(out_dir, f"entities_sorted.html"),
+        template="entity_examples.html",
+    )
 
     # with relations
-    _store_examples(rel_examples,
-                    file_path=os.path.join(out_dir, f'relations.html'),
-                    template='relation_examples.html')
+    _store_examples(rel_examples, file_path=os.path.join(out_dir, f"relations.html"), template="relation_examples.html")
 
-    _store_examples(sorted(rel_examples, key=lambda k: k['length']),
-                    file_path=os.path.join(out_dir, f'relations_sorted.html'),
-                    template='relation_examples.html')
+    _store_examples(
+        sorted(rel_examples, key=lambda k: k["length"]),
+        file_path=os.path.join(out_dir, f"relations_sorted.html"),
+        template="relation_examples.html",
+    )
 
 
 def main():
-    predicted_corpus_dir = "/scratch/data/ali/kpi_relation_extractor/banz/experiments/" \
-                           "consistency_check/ModelTraining/004"
-    predicted_corpus_path = os.path.join(predicted_corpus_dir, 'corpus_predicted_with_scores_new.p')
-    corpus = pickle.load(open(predicted_corpus_path, 'rb'))
+    predicted_corpus_dir = (
+        "/scratch/data/ali/kpi_relation_extractor/banz/experiments/" "consistency_check/ModelTraining/004"
+    )
+    predicted_corpus_path = os.path.join(predicted_corpus_dir, "corpus_predicted_with_scores_new.p")
+    corpus = pickle.load(open(predicted_corpus_path, "rb"))
 
     corpus = Corpus.from_dict(corpus)
 
-    sentences = [sentence for sentence in corpus.sentences if sentence.split_type == 'valid']
+    sentences = [sentence for sentence in corpus.sentences if sentence.split_type == "valid"]
 
     create_html(sentences, out_dir=predicted_corpus_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

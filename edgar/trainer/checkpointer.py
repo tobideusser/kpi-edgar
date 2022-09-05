@@ -2,8 +2,8 @@ import logging
 import os
 from typing import List, Tuple, Optional, Dict, Any
 
-from fluidml.common import Task
 import torch
+from fluidml.common import Task
 
 from edgar.trainer.utils import get_device
 
@@ -11,10 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class Checkpointer:
-    def __init__(self,
-                 task: Task,
-                 serialization_dir: str = 'models',
-                 num_serialized_models_to_keep: int = 2):
+    def __init__(self, task: Task, serialization_dir: str = "models", num_serialized_models_to_keep: int = 2):
         self._task = task
         run_dir = self._task.get_store_context()
         self._serialization_dir = serialization_dir
@@ -24,22 +21,19 @@ class Checkpointer:
         self._num_serialized_models_to_keep = num_serialized_models_to_keep
 
     def save_checkpoint(
-            self,
-            model_state: Dict,
-            training_state: Dict,
-            epoch: int,
-            is_best_so_far: bool = False
+        self, model_state: Dict, training_state: Dict, epoch: int, is_best_so_far: bool = False
     ) -> None:
         epoch = str(epoch).zfill(2)
-        self._task.save(obj=model_state, name=f"model_state_epoch_{epoch}", type_='torch',
-                        sub_dir=self._serialization_dir)
-        self._task.save(obj=training_state, name=f"training_state_epoch_{epoch}", type_='torch',
-                        sub_dir=self._serialization_dir)
+        self._task.save(
+            obj=model_state, name=f"model_state_epoch_{epoch}", type_="torch", sub_dir=self._serialization_dir
+        )
+        self._task.save(
+            obj=training_state, name=f"training_state_epoch_{epoch}", type_="torch", sub_dir=self._serialization_dir
+        )
 
         if is_best_so_far:
             logger.info(f"Best validation performance so far. Overwriting '{self._model_dir}/best_model.pt'.")
-            self._task.save(obj=model_state, name=f"best_model", type_='torch',
-                            sub_dir=self._serialization_dir)
+            self._task.save(obj=model_state, name=f"best_model", type_="torch", sub_dir=self._serialization_dir)
 
         if self._num_serialized_models_to_keep is not None and self._num_serialized_models_to_keep >= 0:
             model_state_name = f"model_state_epoch_{epoch}"
@@ -91,8 +85,9 @@ class Checkpointer:
             return None
 
         serialization_files = os.listdir(self._model_dir)
-        epochs = [int(path.split('.pt')[0].split('_')[-1])
-                  for path in serialization_files if "model_state_epoch" in path]
+        epochs = [
+            int(path.split(".pt")[0].split("_")[-1]) for path in serialization_files if "model_state_epoch" in path
+        ]
 
         last_epoch = sorted(epochs, reverse=True)[0]
         last_epoch = str(last_epoch).zfill(2)
