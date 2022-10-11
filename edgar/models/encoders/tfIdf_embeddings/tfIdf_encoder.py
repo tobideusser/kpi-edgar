@@ -1,32 +1,30 @@
 import logging
+import pickle
 from typing import Dict
 
-from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 import torch
-import torch.nn as nn
-import pickle
 
-from edgar.trainer.utils import get_device
 from edgar.models.encoders import Encoder
-
+from edgar.trainer.utils import get_device
 
 logger = logging.getLogger(__name__)
 
 
 class TfIdfEncoder(Encoder):
-    def __init__(self,
-                 path_embedding: str,
-                 embedding_dim: int = 200,
-                 oov_vector: str = "random", # how should the out of vocabulary(oov) word should be handled
-                 seed: int = 100,
-                 word_pooling: str = None
-                 ):
+    def __init__(
+        self,
+        path_embedding: str,
+        embedding_dim: int = 200,
+        oov_vector: str = "random",  # how should the out of vocabulary(oov) word should be handled
+        seed: int = 100,
+        word_pooling: str = None,
+    ):
         super().__init__()
 
         self.emb_dim = embedding_dim
 
-        with open(path_embedding, 'rb') as handle:
+        with open(path_embedding, "rb") as handle:
             self.vectorizer = pickle.load(handle)
 
     def forward(self, batch: Dict) -> Dict:
@@ -64,4 +62,3 @@ class TfIdfEncoder(Encoder):
         batch["token_embeddings"] = None
         batch["cls_embedding"] = None
         return batch
-

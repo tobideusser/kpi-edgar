@@ -173,8 +173,8 @@ class ModelTraining(Task):
 
         # code to handle when tfidf is used as baseline
         if self.model_params["encoder_params"]["encoder_type_"] == "tfidf":
-            path_to_tfIdf = self.model_params["encoder_params"]["path_embedding"]
-            if os.path.exists(path_to_tfIdf):
+            path_to_tf_idf = self.model_params["encoder_params"]["path_embedding"]
+            if os.path.exists(path_to_tf_idf):
                 pass
             else:
                 # creating training set for tfIdf
@@ -191,7 +191,7 @@ class ModelTraining(Task):
                 )
 
                 vectorizer.fit(sentence_lists_train)
-                with open(path_to_tfIdf, "wb") as fin:
+                with open(path_to_tf_idf, "wb") as fin:
                     pkl.dump(vectorizer, fin)
 
         batch_collator = BatchCollator(pad_token_id=sub_word_tokenizer.pad_token_id)

@@ -1,5 +1,5 @@
 # Base directory to store all task outputs
-base_dir: "/scratch/data/edgar/icmla/kappa"
+base_dir: "/scratch/data/edgar/icmla/v2"
 
 ################
 # DATA PARSING #
@@ -40,7 +40,7 @@ AnnotationMerging:
   filter_for_annotated_docs: true  # set false for self-training
   ignore_noncritical_warnings: true
   skip_sentences_with_error: true
-  parse_secondary_annotations: true
+  parse_secondary_annotations: false
   label_mapping:
     kpi: 'kpi'
     kpi_coref: 'kpi_coref'
@@ -87,35 +87,35 @@ ModelTraining:
 
     encoder_params:
       # edgar w2v embeddings
-      - encoder_type_: "edgarW2V"
-        path_embedding: "/shared_with_lars_and_thiago/edgar/edgar-w2v-200d/edgar.word.w2v.200.bin"
-        embedding_dim: 200
-        oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
-        seed: 100
-        word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
+#      - encoder_type_: "edgarW2V"
+#        path_embedding: "/shared_with_lars_and_thiago/edgar/edgar-w2v-200d/edgar.word.w2v.200.bin"
+#        embedding_dim: 200
+#        oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
+#        seed: 100
+#        word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
 
-      # glove embeddings
-      - encoder_type_: "glove"
-        path_embedding: "/shared_with_lars_and_thiago/edgar/glove-6B/glove-6B-200d.txt"
-        embedding_dim: 200
-        oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
-        seed: 100
-        word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
-
+#      # glove embeddings
+#      - encoder_type_: "glove"
+#        path_embedding: "/shared_with_lars_and_thiago/edgar/glove-6B/glove-6B-200d.txt"
+#        embedding_dim: 200
+#        oov_vector: 'random' # how should the out of vocabulary(oov) word should be handled
+#        seed: 100
+#        word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
+#
       # tfidf embeddings
       - encoder_type_: "tfidf"
-        path_embedding: "/shared_with_lars_and_thiago/edgar/tfIdf/tfIdf.pkl" # this is where the embeddings by tfidf were saved. so anypath can be given here.
-        embedding_dim: 756
+        path_embedding: "/shared_with_lars_and_thiago/edgar/tfIdf/tfIdf_2000.pkl" # this is where the embeddings by tfidf were saved. so anypath can be given here.
+        embedding_dim: 2000
         word_pooling: 'max' # this argument is not used just used here because it is used somewhere in model_training task file
 
 
     #      # main bert sentence encoder
-      - encoder_type_: "sentenceEncoder"
-        type_: *tokname
-        finetune: true
-        word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
-        output_attentions: false
-        output_hidden_states: false
+#      - encoder_type_: "sentenceEncoder"
+#        type_: *tokname
+#        finetune: true
+#        word_pooling: 'rnn_local' # ['avg', 'rnn_local', 'attention', 'max'] # 'avg' # ['avg', 'rnn_local', 'attention' 'avg', 'max']
+#        output_attentions: false
+#        output_hidden_states: false
 
     decoder_params:
       ner_params:
