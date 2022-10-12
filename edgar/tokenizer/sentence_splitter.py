@@ -1,25 +1,23 @@
-from enum import Enum
 import os
-from typing import List
 import warnings
+from enum import Enum
+from typing import List
 
-from babel.numbers import parse_decimal, NumberFormatError
 import regex
+from babel.numbers import parse_decimal, NumberFormatError
 
-__all__ = (
-    'SentenceSplitter',
-    'SentenceSplitterException',
-    'SentenceSplitterWarning'
-)
+__all__ = ("SentenceSplitter", "SentenceSplitterException", "SentenceSplitterWarning")
 
 
 class SentenceSplitterException(Exception):
     """Sentence splitter exception."""
+
     pass
 
 
 class SentenceSplitterWarning(Warning):
     """Sentence splitter warning."""
+
     pass
 
 
@@ -32,9 +30,9 @@ class SentenceSplitter:
 
     __slots__ = [
         # Dictionary of non-breaking prefixes; keys are string prefixes, values are PrefixType enums
-        '__non_breaking_prefixes',
-        '_language',
-        '_locale'
+        "__non_breaking_prefixes",
+        "_language",
+        "_locale",
     ]
 
     def __init__(self, language: str, non_breaking_prefix_file: str = None):
@@ -49,32 +47,33 @@ class SentenceSplitter:
         else:
             self._locale = f"{self._language}_{self._language.upper()}"
 
-        if not regex.match(pattern=r'^[a-z][a-z]$', string=language, flags=regex.UNICODE):
+        if not regex.match(pattern=r"^[a-z][a-z]$", string=language, flags=regex.UNICODE):
             raise SentenceSplitterException("Invalid language code: {}".format(language))
 
         if non_breaking_prefix_file is None:
             pwd = os.path.dirname(os.path.abspath(__file__))
-            prefix_dir = os.path.join(pwd, 'non_breaking_prefixes')
-            non_breaking_prefix_file = os.path.join(prefix_dir, '{}.txt'.format(language))
+            prefix_dir = os.path.join(pwd, "non_breaking_prefixes")
+            non_breaking_prefix_file = os.path.join(prefix_dir, "{}.txt".format(language))
 
         if not os.path.isfile(non_breaking_prefix_file):
             raise SentenceSplitterException(
                 "Non-breaking prefix file for language '{}' was not found at path '{}'".format(
                     language,
                     non_breaking_prefix_file,
-                ))
+                )
+            )
 
         self.__non_breaking_prefixes = dict()
-        with open(non_breaking_prefix_file, mode='r', encoding='utf-8') as prefix_file:
+        with open(non_breaking_prefix_file, mode="r", encoding="utf-8") as prefix_file:
             for line in prefix_file.readlines():
 
-                if '#NUMERIC_ONLY#' in line:
+                if "#NUMERIC_ONLY#" in line:
                     prefix_type = SentenceSplitter.PrefixType.NUMERIC_ONLY
                 else:
                     prefix_type = SentenceSplitter.PrefixType.DEFAULT
 
                 # Remove comments
-                line = regex.sub(pattern=r'#.*', repl='', string=line, flags=regex.DOTALL | regex.UNICODE)
+                line = regex.sub(pattern=r"#.*", repl="", string=line, flags=regex.DOTALL | regex.UNICODE)
 
                 line = line.strip()
 
@@ -107,17 +106,17 @@ class SentenceSplitter:
         # Non-period end of sentence markers (?!) followed by sentence starters
         text = regex.sub(
             pattern=r'([?!]) +([\'"([\u00bf\u00A1\p{Initial_Punctuation}]*[\p{Uppercase_Letter}\p{Other_Letter}])',
-            repl='\\1\n\\2',
+            repl="\\1\n\\2",
             string=text,
-            flags=regex.UNICODE
+            flags=regex.UNICODE,
         )
 
         # Multi-dots followed by sentence starters
         text = regex.sub(
             pattern=r'(\.[\.]+) +([\'"([\u00bf\u00A1\p{Initial_Punctuation}]*[\p{Uppercase_Letter}\p{Other_Letter}])',
-            repl='\\1\n\\2',
+            repl="\\1\n\\2",
             string=text,
-            flags=regex.UNICODE
+            flags=regex.UNICODE,
         )
 
         # Add breaks for sentences that end with some sort of punctuation inside a quote or parenthetical and are
@@ -125,11 +124,11 @@ class SentenceSplitter:
         text = regex.sub(
             pattern=(
                 r'([?!\.][\ ]*[\'")\]\p{Final_Punctuation}]+) +([\'"([\u00bf\u00A1\p{Initial_Punctuation}]*[\ ]*'
-                r'[\p{Uppercase_Letter}\p{Other_Letter}])'
+                r"[\p{Uppercase_Letter}\p{Other_Letter}])"
             ),
-            repl='\\1\n\\2',
+            repl="\\1\n\\2",
             string=text,
-            flags=regex.UNICODE
+            flags=regex.UNICODE,
         )
         # Add breaks for sentences that end with some sort of punctuation are followed by a sentence starter punctuation
         # and upper case
@@ -137,19 +136,19 @@ class SentenceSplitter:
             pattern=(
                 r'([?!\.]) +([\'"[\u00bf\u00A1\p{Initial_Punctuation}]+[\ ]*[\p{Uppercase_Letter}\p{Other_Letter}])'
             ),
-            repl='\\1\n\\2',
+            repl="\\1\n\\2",
             string=text,
-            flags=regex.UNICODE
+            flags=regex.UNICODE,
         )
 
         # Special punctuation cases are covered. Check all remaining periods
-        words = regex.split(pattern=r' +', string=text, flags=regex.UNICODE)
-        text = ''
+        words = regex.split(pattern=r" +", string=text, flags=regex.UNICODE)
+        text = ""
         for i in range(0, len(words) - 1):
 
-            match = regex.search(pattern=r'([\w\.\-]*)([\'\"\)\]\%\p{Final_Punctuation}]*)(\.+)$',
-                                 string=words[i],
-                                 flags=regex.UNICODE)
+            match = regex.search(
+                pattern=r"([\w\.\-]*)([\'\"\)\]\%\p{Final_Punctuation}]*)(\.+)$", string=words[i], flags=regex.UNICODE
+            )
             if match:
                 prefix = match.group(1)
                 starting_punct = match.group(2)
@@ -164,24 +163,25 @@ class SentenceSplitter:
                     return False
 
                 prefix_full = words[i][:-1]
-                if (is_prefix_honorific(prefix_=prefix, starting_punct_=starting_punct)
-                        and not (self._is_number(prefix_full) and ('.' in prefix_full or ',' in prefix_full))):
+                if is_prefix_honorific(prefix_=prefix, starting_punct_=starting_punct) and not (
+                    self._is_number(prefix_full) and ("." in prefix_full or "," in prefix_full)
+                ):
                     # Not breaking
                     pass
 
-                elif regex.search(pattern=r'(\.)[\p{Uppercase_Letter}\p{Other_Letter}\-]+(\.+)$',
-                                  string=words[i],
-                                  flags=regex.UNICODE):
+                elif regex.search(
+                    pattern=r"(\.)[\p{Uppercase_Letter}\p{Other_Letter}\-]+(\.+)$", string=words[i], flags=regex.UNICODE
+                ):
                     # Not breaking - upper case acronym
                     pass
 
                 elif regex.search(
-                        pattern=(
-                            r'^([ ]*[\'"([\u00bf\u00A1\p{Initial_Punctuation}]*[ ]*[\p{Uppercase_Letter}'
-                            r'\p{Other_Letter}0-9])'
-                        ),
-                        string=words[i + 1],
-                        flags=regex.UNICODE
+                    pattern=(
+                        r'^([ ]*[\'"([\u00bf\u00A1\p{Initial_Punctuation}]*[ ]*[\p{Uppercase_Letter}'
+                        r"\p{Other_Letter}0-9])"
+                    ),
+                    string=words[i + 1],
+                    flags=regex.UNICODE,
                 ):
 
                     def is_numeric(prefix_: str, starting_punct_: str, next_word: str):
@@ -191,7 +191,7 @@ class SentenceSplitter:
                             if prefix_ in self.__non_breaking_prefixes:
                                 if self.__non_breaking_prefixes[prefix_] == SentenceSplitter.PrefixType.NUMERIC_ONLY:
                                     if not starting_punct_:
-                                        if regex.search(pattern='^[0-9]+', string=next_word, flags=regex.UNICODE):
+                                        if regex.search(pattern="^[0-9]+", string=next_word, flags=regex.UNICODE):
                                             return True
                         return False
 
@@ -206,11 +206,11 @@ class SentenceSplitter:
         text = text + words[-1]
 
         # Clean up spaces at head and tail of each line as well as any double-spacing
-        text = regex.sub(pattern=' +', repl=' ', string=text)
-        text = regex.sub(pattern='\n ', repl='\n', string=text)
-        text = regex.sub(pattern=' \n', repl='\n', string=text)
+        text = regex.sub(pattern=" +", repl=" ", string=text)
+        text = regex.sub(pattern="\n ", repl="\n", string=text)
+        text = regex.sub(pattern=" \n", repl="\n", string=text)
         text = text.strip()
 
-        sentences = text.split('\n')
+        sentences = text.split("\n")
 
         return sentences

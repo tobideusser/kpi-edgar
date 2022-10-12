@@ -5,7 +5,6 @@ from fluidml import Task
 
 from edgar.data_parser import EdgarParser
 
-
 logger = logging.getLogger(__name__)
 
 

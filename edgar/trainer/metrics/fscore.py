@@ -76,10 +76,10 @@ class FBeta(Metric):
         self._true_sum: Optional[torch.Tensor] = None
 
     def __call__(
-            self,
-            predictions: torch.Tensor,
-            targets: torch.Tensor,
-            mask: Optional[torch.BoolTensor] = None,
+        self,
+        predictions: torch.Tensor,
+        targets: torch.Tensor,
+        mask: Optional[torch.BoolTensor] = None,
     ):
         """
         # Parameters
@@ -98,8 +98,7 @@ class FBeta(Metric):
         num_classes = predictions.size(-1)
         if (targets >= num_classes).any():
             raise ValueError(
-                "A gold label passed to FBetaMeasure contains "
-                f"an id >= {num_classes}, the number of classes."
+                "A gold label passed to FBetaMeasure contains " f"an id >= {num_classes}, the number of classes."
             )
 
         # It means we call this metric at the first time
@@ -125,9 +124,7 @@ class FBeta(Metric):
         if true_positives_bins.shape[0] == 0:
             true_positive_sum = torch.zeros(num_classes, device=device)
         else:
-            true_positive_sum = torch.bincount(
-                true_positives_bins.long(), minlength=num_classes
-            ).float()
+            true_positive_sum = torch.bincount(true_positives_bins.long(), minlength=num_classes).float()
 
         pred_bins = argmax_predictions[mask & pred_mask].long()
         # Watch it:
@@ -175,7 +172,7 @@ class FBeta(Metric):
             pred_sum = pred_sum.sum()  # type: ignore
             true_sum = true_sum.sum()  # type: ignore
 
-        beta2 = self._beta ** 2
+        beta2 = self._beta**2
         # Finally, we have all our sufficient statistics.
         precision = nan_safe_tensor_divide(tp_sum, pred_sum)
         recall = nan_safe_tensor_divide(tp_sum, true_sum)
@@ -241,27 +238,27 @@ class NERF1(Metric):
         self.gt_entities: List[List[Dict]] = []
         self.entity_types: Optional[List[str]] = None
 
-    def __call__(self,
-                 entities_anno: List[List[Dict]],
-                 entities_pred: List[Dict],
-                 entity_types: List[str]):
+    def __call__(self, entities_anno: List[List[Dict]], entities_pred: List[Dict], entity_types: List[str]):
         """Evaluate NER predictions
-                Args:
-                    pred_entities (list) :  list of list of predicted entities (several entities in each sentence)
-                    gt_entities (list) :    list of list of ground truth entities
-                        entity = {"start": start_idx (inclusive),
-                                  "end": end_idx (exclusive),
-                                  "type": ent_type}
-                    entity_types (list):     list of entity types
-                                  """
+        Args:
+            pred_entities (list) :  list of list of predicted entities (several entities in each sentence)
+            gt_entities (list) :    list of list of ground truth entities
+                entity = {"start": start_idx (inclusive),
+                          "end": end_idx (exclusive),
+                          "type": ent_type}
+            entity_types (list):     list of entity types
+        """
         if self.entity_types is None:
             self.entity_types = entity_types
 
         self.gt_entities.extend(entities_anno)
         # self.pred_entities.extend(pred_entities)
-        self.pred_entities.extend([[{"start": span[0], "end": span[1], "type_": ent_type}
-                                    for span, ent_type in s.items()]
-                                   for s in entities_pred])
+        self.pred_entities.extend(
+            [
+                [{"start": span[0], "end": span[1], "type_": ent_type} for span, ent_type in s.items()]
+                for s in entities_pred
+            ]
+        )
 
     def get_metric(self, reset: bool = False):
         assert len(self.pred_entities) == len(self.gt_entities)
@@ -291,21 +288,18 @@ class NERF1(Metric):
                 precision = 100 * statistics[ent_type]["tp"] / (statistics[ent_type]["fp"] + statistics[ent_type]["tp"])
                 recall = 100 * statistics[ent_type]["tp"] / (statistics[ent_type]["fn"] + statistics[ent_type]["tp"])
             else:
-                precision, recall = 0., 0.
+                precision, recall = 0.0, 0.0
 
             if not precision + recall == 0:
                 f1 = 2 * precision * recall / (precision + recall)
             else:
-                f1 = 0.
+                f1 = 0.0
 
             support = statistics[ent_type]["support"]
-            clf_report[ent_type] = {'Precision': precision,
-                                    'Recall': recall,
-                                    'F1': f1,
-                                    'Support': support}
+            clf_report[ent_type] = {"Precision": precision, "Recall": recall, "F1": f1, "Support": support}
 
         # Sort clf report descending
-        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]['Support'], reverse=True))
+        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]["Support"], reverse=True))
 
         # Compute micro F1 Scores
         tp_all = sum([statistics[ent_type]["tp"] for ent_type in self.entity_types])
@@ -319,32 +313,37 @@ class NERF1(Metric):
             micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
 
         else:
-            micro_precision, micro_recall, micro_f1 = 0., 0., 0.
+            micro_precision, micro_recall, micro_f1 = 0.0, 0.0, 0.0
 
-        clf_report['micro avg'] = {'Precision': micro_precision,
-                                   'Recall': micro_recall,
-                                   'F1': micro_f1,
-                                   'Support': support_all}
+        clf_report["micro avg"] = {
+            "Precision": micro_precision,
+            "Recall": micro_recall,
+            "F1": micro_f1,
+            "Support": support_all,
+        }
 
         # Compute Macro F1 Scores
-        macro_precision = np.mean([clf_report[ent_type]["Precision"] for ent_type in self.entity_types
-                                   if clf_report[ent_type]["Support"] > 0])
-        macro_recall = np.mean([clf_report[ent_type]["Recall"] for ent_type in self.entity_types
-                                if clf_report[ent_type]["Support"] > 0])
-        macro_f1 = np.mean([clf_report[ent_type]["F1"] for ent_type in self.entity_types
-                            if clf_report[ent_type]["Support"] > 0])
+        macro_precision = np.mean(
+            [clf_report[ent_type]["Precision"] for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0]
+        )
+        macro_recall = np.mean(
+            [clf_report[ent_type]["Recall"] for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0]
+        )
+        macro_f1 = np.mean(
+            [clf_report[ent_type]["F1"] for ent_type in self.entity_types if clf_report[ent_type]["Support"] > 0]
+        )
 
-        clf_report['macro avg'] = {'Precision': macro_precision,
-                                   'Recall': macro_recall,
-                                   'F1': macro_f1,
-                                   'Support': support_all}
+        clf_report["macro avg"] = {
+            "Precision": macro_precision,
+            "Recall": macro_recall,
+            "F1": macro_f1,
+            "Support": support_all,
+        }
 
         if reset:
             self.reset()
 
-        return {'ner_clf_report': clf_report,
-                'ner_micro_f1': micro_f1,
-                'ner_macro_f1': macro_f1}
+        return {"ner_clf_report": clf_report, "ner_micro_f1": micro_f1, "ner_macro_f1": macro_f1}
 
     def reset(self):
         self.pred_entities = []
@@ -352,7 +351,7 @@ class NERF1(Metric):
 
 
 class REF1(Metric):
-    def __init__(self, mode: str = 'strict'):
+    def __init__(self, mode: str = "strict"):
         super().__init__()
         assert mode in ["strict", "boundaries"]
         self.mode = mode
@@ -361,20 +360,22 @@ class REF1(Metric):
         self.gt_relations: List[List[Dict]] = []
         self.relation_types: Optional[List[str]] = None
 
-    def __call__(self,
-                 relations_anno: List[List[Dict]],
-                 relations_pred: List[List[Dict]],
-                 entities_anno: List[List[Dict]],
-                 relation_types: List[str]):
+    def __call__(
+        self,
+        relations_anno: List[List[Dict]],
+        relations_pred: List[List[Dict]],
+        entities_anno: List[List[Dict]],
+        relation_types: List[str],
+    ):
         """Evaluate RE predictions
-            Args:
-                pred_relations (list) :  list of list of predicted relations (several relations in each sentence)
-                gt_relations (list) :    list of list of ground truth relations
-                    rel = { "head": (start_idx (inclusive), end_idx (exclusive)),
-                            "tail": (start_idx (inclusive), end_idx (exclusive)),
-                            "head_type": ent_type,
-                            "tail_type": ent_type,
-                            "type": rel_type}
+        Args:
+            pred_relations (list) :  list of list of predicted relations (several relations in each sentence)
+            gt_relations (list) :    list of list of ground truth relations
+                rel = { "head": (start_idx (inclusive), end_idx (exclusive)),
+                        "tail": (start_idx (inclusive), end_idx (exclusive)),
+                        "head_type": ent_type,
+                        "tail_type": ent_type,
+                        "type": rel_type}
         """
         if self.relation_types is None:
             self.relation_types = relation_types
@@ -407,20 +408,24 @@ class REF1(Metric):
             for rel_type in self.relation_types:
                 # strict mode takes argument types into account
                 if self.mode == "strict":
-                    pred_rels = {(rel["head"], rel["head_type"], rel["tail"], rel["tail_type"]) for rel in pred_sent if
-                                 rel["type_"] == rel_type
-                                 # and
-                                 # rel['head_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                                 # and
-                                 # rel['tail_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                                 }
-                    gt_rels = {(rel["head"], rel["head_type"], rel["tail"], rel["tail_type"]) for rel in gt_sent if
-                               rel["type_"] == rel_type
-                               # and
-                               # rel['head_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                               # and
-                               # rel['tail_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
-                               }
+                    pred_rels = {
+                        (rel["head"], rel["head_type"], rel["tail"], rel["tail_type"])
+                        for rel in pred_sent
+                        if rel["type_"] == rel_type
+                        # and
+                        # rel['head_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
+                        # and
+                        # rel['tail_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
+                    }
+                    gt_rels = {
+                        (rel["head"], rel["head_type"], rel["tail"], rel["tail_type"])
+                        for rel in gt_sent
+                        if rel["type_"] == rel_type
+                        # and
+                        # rel['head_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
+                        # and
+                        # rel['tail_type'] not in ['davon_increase', 'davon_decrease', 'increase_py', 'decrease_py', 'py1']
+                    }
 
                 # boundaries mode only takes argument spans into account
                 elif self.mode == "boundaries":
@@ -437,20 +442,17 @@ class REF1(Metric):
                 precision = 100 * statistics[rel_type]["tp"] / (statistics[rel_type]["fp"] + statistics[rel_type]["tp"])
                 recall = 100 * statistics[rel_type]["tp"] / (statistics[rel_type]["fn"] + statistics[rel_type]["tp"])
             else:
-                precision, recall = 0., 0.
+                precision, recall = 0.0, 0.0
 
             if not precision + recall == 0:
                 f1 = 2 * precision * recall / (precision + recall)
             else:
-                f1 = 0.
+                f1 = 0.0
             support = statistics[rel_type]["tp"] + statistics[rel_type]["fn"]
-            clf_report[rel_type] = {'Precision': precision,
-                                    'Recall': recall,
-                                    'F1': f1,
-                                    'Support': support}
+            clf_report[rel_type] = {"Precision": precision, "Recall": recall, "F1": f1, "Support": support}
 
         # Sort clf report descending
-        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]['Support'], reverse=True))
+        clf_report = dict(sorted(clf_report.items(), key=lambda item: item[1]["Support"], reverse=True))
 
         # Compute micro F1 Scores
         all_tp = sum([statistics[rel_type]["tp"] for rel_type in self.relation_types])
@@ -463,30 +465,32 @@ class REF1(Metric):
             micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
 
         else:
-            micro_precision, micro_recall, micro_f1 = 0., 0., 0.
+            micro_precision, micro_recall, micro_f1 = 0.0, 0.0, 0.0
         support_all = all_tp + all_fn
 
-        clf_report['micro avg'] = {'Precision': micro_precision,
-                                   'Recall': micro_recall,
-                                   'F1': micro_f1,
-                                   'Support': support_all}
+        clf_report["micro avg"] = {
+            "Precision": micro_precision,
+            "Recall": micro_recall,
+            "F1": micro_f1,
+            "Support": support_all,
+        }
 
         # Compute Macro F1 Scores
         macro_precision = np.mean([clf_report[rel_type]["Precision"] for rel_type in self.relation_types])
         macro_recall = np.mean([clf_report[rel_type]["Recall"] for rel_type in self.relation_types])
         macro_f1 = np.mean([clf_report[rel_type]["F1"] for rel_type in self.relation_types])
 
-        clf_report['macro avg'] = {'Precision': macro_precision,
-                                   'Recall': macro_recall,
-                                   'F1': macro_f1,
-                                   'Support': support_all}
+        clf_report["macro avg"] = {
+            "Precision": macro_precision,
+            "Recall": macro_recall,
+            "F1": macro_f1,
+            "Support": support_all,
+        }
 
         if reset:
             self.reset()
 
-        return {'re_clf_report': clf_report,
-                're_micro_f1': micro_f1,
-                're_macro_f1': macro_f1}
+        return {"re_clf_report": clf_report, "re_micro_f1": micro_f1, "re_macro_f1": macro_f1}
 
     def reset(self):
         self.pred_relations = []

@@ -7,9 +7,9 @@ import torch
 from torch import nn
 
 from edgar.data_classes import Labels
-from edgar.trainer.utils import get_device, get_padding_mask
-from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
 from edgar.models.ner import NERDecoder
+from edgar.models.pooling import word2entity_embedding, PoolingRNNLocal
+from edgar.trainer.utils import get_device, get_padding_mask
 
 logger = logging.getLogger(__name__)
 

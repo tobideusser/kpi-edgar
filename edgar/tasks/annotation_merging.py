@@ -3,8 +3,8 @@ from typing import Dict, Union, Optional
 
 from fluidml import Task
 
-from edgar.data_classes import Corpus
 from edgar.annotation_merger import AnnotationMerger
+from edgar.data_classes import Corpus
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,6 @@ from tqdm import tqdm
 from edgar.currency_tagger import tagger
 from edgar.data_classes import Corpus, Paragraph, Table
 
-
 logger = logging.getLogger(__name__)
 
 

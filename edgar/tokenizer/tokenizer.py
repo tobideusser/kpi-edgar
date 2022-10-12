@@ -13,11 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class Tokenizer:
-    def __init__(
-            self,
-            remove_tables: bool = False,
-            language: str = "en"
-    ):
+    def __init__(self, remove_tables: bool = False, language: str = "en"):
         self._remove_tables = remove_tables
 
         self._tokenizer = SynTokenizer()
@@ -25,7 +21,7 @@ class Tokenizer:
             language=language,
             non_breaking_prefix_file=os.path.join(
                 package_path, "tokenizer", f"{language}_sentencesplitter_additional.txt"
-            )
+            ),
         )
 
     @staticmethod
@@ -35,18 +31,19 @@ class Tokenizer:
         for token in gen_tokens:
             if flag:
                 del tokens[-1]
-                tokens.append(('-' + token.value, token.offset - 1))
+                tokens.append(("-" + token.value, token.offset - 1))
                 flag = False
             else:
-                if token.spacing and token.spacing != ' ' and tokens:
+                if token.spacing and token.spacing != " " and tokens:
                     prev_token = tokens[-1][0]
                     del tokens[-1]
                     tokens.append(
-                        (prev_token + token.spacing + token.value, token.offset - len(prev_token + token.spacing)))
+                        (prev_token + token.spacing + token.value, token.offset - len(prev_token + token.spacing))
+                    )
                 else:
                     tokens.append((token.value, token.offset))
 
-            if token.value == '-' and token.spacing == ' ':
+            if token.value == "-" and token.spacing == " ":
                 flag = True
         return tokens
 
@@ -105,18 +102,13 @@ class Tokenizer:
         for sentence in sentences:
             # split sentence in words
             sentence, text_len = self.tokenize(
-                sentence=sentence,
-                text_len=text_len,
-                edgar_entities=segment.edgar_entities
+                sentence=sentence, text_len=text_len, edgar_entities=segment.edgar_entities
             )
             # set unique sentence id (unique within corpus)
-            sentence.unique_id = f'{document_id}_{segment_id}_{sentence.id_}'
+            sentence.unique_id = f"{document_id}_{segment_id}_{sentence.id_}"
         return sentences
 
-    def tokenize_corpus(
-            self,
-            corpus: Corpus
-    ):
+    def tokenize_corpus(self, corpus: Corpus):
         if self._remove_tables:
             for document in tqdm(corpus):
                 segments = []

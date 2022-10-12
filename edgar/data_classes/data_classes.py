@@ -9,12 +9,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import product
 from typing import List, Dict, Optional, Tuple, Union, Iterator
-from torch import Tensor
 
 import lxml
 import pandas as pd
 from lxml import html as lh
 from lxml.html.clean import Cleaner
+from torch import Tensor
 
 
 def create_dataframe_from_json(df: str) -> pd.DataFrame:
@@ -835,8 +835,6 @@ class Corpus:
 
 
 def main():
-    from rich import print as pprint
-
     path = "/scratch/data/sec-edgar/tesla_xbrl/"
     file_name = "tsla-10k_20191231.htm"
     file = f"{path}{file_name}"

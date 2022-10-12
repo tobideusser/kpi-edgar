@@ -9,13 +9,13 @@ from edgar.data_classes import Corpus, Table, Sentence
 
 # currency_matching_pre = re.compile('(€|EUR|Euro)($|\.|\:|\,)')
 # currency_matching_post = re.compile('(^[^\(]*)(€|EUR|Euro)($|\.|\:|\,|\))')
-GERMAN_CURRENCY_REGEX = re.compile(r'(€|EUR|Euro|Eur)')
+GERMAN_CURRENCY_REGEX = re.compile(r"(€|EUR|Euro|Eur)")
 ENGLISH_US_CURRENCY_REGEX = re.compile(r"(?i)(\$|USD|U\.S\. dollar|US dollar)")
 GERMAN_DATE_REGEX = re.compile(
-    r'(0?[1-9]|[12][0-9]|3[01]) ?([-/\., ])? ?((januar|Januar|februar|Februar|märz|März|april|April|mai|Mai|juni|Juni|'
-    r'juli|Juli|august|August|september|September|oktober|Oktober|november|November|dezember|Dezember|jan|Jan|feb|Feb|'
-    r'mrz|Mrz|mär|Mär|apr|Apr|mai|Mai|jun|Jun|jul|Jul|aug|Aug|sep|Sep|okt|Okt|nov|Nov|dez|Dez)|'
-    r'[XIV]{1,4}|0?[1-9]|1[0-2]) ?[-/\., ]? ?((19|20)[0-9]{2})'
+    r"(0?[1-9]|[12][0-9]|3[01]) ?([-/\., ])? ?((januar|Januar|februar|Februar|märz|März|april|April|mai|Mai|juni|Juni|"
+    r"juli|Juli|august|August|september|September|oktober|Oktober|november|November|dezember|Dezember|jan|Jan|feb|Feb|"
+    r"mrz|Mrz|mär|Mär|apr|Apr|mai|Mai|jun|Jun|jul|Jul|aug|Aug|sep|Sep|okt|Okt|nov|Nov|dez|Dez)|"
+    r"[XIV]{1,4}|0?[1-9]|1[0-2]) ?[-/\., ]? ?((19|20)[0-9]{2})"
 )
 ENGLISH_US_DATE_REGEX = re.compile(
     r"(?i)(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|october|oct|"
@@ -23,43 +23,46 @@ ENGLISH_US_DATE_REGEX = re.compile(
 )
 
 GERMAN_CURRENCY_UNIT_MAPPING = {
-    ('teur', 't', 'te', 'tsd', 'tausend', 'k', 'keur', 'tsdeur'): {'unit': 'Tsd. EUR', 'multiplier': 1e3},
-    ('mio', 'millionen', 'million', 'm', 'mioeur'): {'unit': 'Mio. EUR', 'multiplier': 1e6},
-    ('mrd', 'milliarden', 'milliarde', 'mrdeur'): {'unit': 'Mrd. EUR', 'multiplier': 1e9},
+    ("teur", "t", "te", "tsd", "tausend", "k", "keur", "tsdeur"): {"unit": "Tsd. EUR", "multiplier": 1e3},
+    ("mio", "millionen", "million", "m", "mioeur"): {"unit": "Mio. EUR", "multiplier": 1e6},
+    ("mrd", "milliarden", "milliarde", "mrdeur"): {"unit": "Mrd. EUR", "multiplier": 1e9},
 }
 
 ENGLISH_US_CURRENCY_UNIT_MAPPING = {
-    ("kusd", "KUSD", "thousand", "Thousand", "thousands", "Thousands", "k", "K", "k$", "K$"):
-        {"unit": "Thousand USD", "multiplier": 1e3},
-    ("musd", "MUSD", "million", "Million", "millions", "Millions", "m", "M", "m$", "M$"):
-        {"unit": "Million USD", "multiplier": 1e6},
-    ("busd", "BUSD", "billion", "Billion", "billions", "Billions", "b", "B", "b$", "B$"):
-        {"unit": "Billion USD", "multiplier": 1e9}
+    ("kusd", "KUSD", "thousand", "Thousand", "thousands", "Thousands", "k", "K", "k$", "K$"): {
+        "unit": "Thousand USD",
+        "multiplier": 1e3,
+    },
+    ("musd", "MUSD", "million", "Million", "millions", "Millions", "m", "M", "m$", "M$"): {
+        "unit": "Million USD",
+        "multiplier": 1e6,
+    },
+    ("busd", "BUSD", "billion", "Billion", "billions", "Billions", "b", "B", "b$", "B$"): {
+        "unit": "Billion USD",
+        "multiplier": 1e9,
+    },
 }
 
 
 def clean(token: str):
-    punctuation_chars = string.punctuation + '–'
+    punctuation_chars = string.punctuation + "–"
     try:
-        while token[0] in punctuation_chars or token[0] == ' ':
+        while token[0] in punctuation_chars or token[0] == " ":
             token = token[1:]
-        while token[-1] in punctuation_chars or token[-1] == ' ':
+        while token[-1] in punctuation_chars or token[-1] == " ":
             token = token[:-1]
     except IndexError:
         pass
     return token
 
 
-def get_token_context(tokens: List[str],
-                      pos: int,
-                      left: int,
-                      right: int) -> List[str]:
+def get_token_context(tokens: List[str], pos: int, left: int, right: int) -> List[str]:
     # get left token context (exclude '.' tokens)
     context_left = []
     left_shift = 1
     while len(context_left) < left and pos - left_shift >= 0:
         context_token = tokens[max(pos - left_shift, 0)]
-        if context_token not in '.':
+        if context_token not in ".":
             context_left.append(context_token)
         left_shift += 1
 
@@ -68,15 +71,15 @@ def get_token_context(tokens: List[str],
     shift_right = 1
     while len(context_right) < right and pos + shift_right + 1 < len(tokens):
         context_token = tokens[min(pos + shift_right, len(tokens) - 1)]
-        if context_token not in '.':
+        if context_token not in ".":
             context_right.append(context_token)
         shift_right += 1
     # combine left_context, token and right context
     return context_left[::-1] + [tokens[pos]] + context_right
 
 
-def convert_to_float(token: str, language='de') -> float:
-    return float(parse_decimal(token, locale=f'{language}_{language.upper()}'))
+def convert_to_float(token: str, language="de") -> float:
+    return float(parse_decimal(token, locale=f"{language}_{language.upper()}"))
 
 
 def is_year(token: str):
@@ -97,7 +100,7 @@ def tag_numeric_tokens(sentence: Sentence, language: str = "en"):
                 num_token = convert_to_float(token.value)
                 token.value_numeric = num_token
                 token.is_numeric = True
-                token.value_masked = '<NUM>'
+                token.value_masked = "<NUM>"
         except NumberFormatError:
             token.is_numeric = False
 
@@ -126,21 +129,21 @@ def tag_currency_tokens(sentence: Sentence, language: str = "en"):
         if not currency_pos:
             for context_token in context_left:
                 if currency_regex.search(context_token):
-                    currency_pos = 'left'
+                    currency_pos = "left"
                     break
             if not currency_pos:
                 for context_token in context_right:
                     if currency_regex.search(context_token):
-                        currency_pos = 'right'
+                        currency_pos = "right"
                         break
 
-        if currency_pos == 'left':
+        if currency_pos == "left":
             for context_token in context_left:
                 if currency_regex.search(context_token):
                     match = True
                     break
 
-        if currency_pos == 'right':
+        if currency_pos == "right":
             for context_token in context_right:
                 if currency_regex.search(context_token):
                     match = True
@@ -150,15 +153,15 @@ def tag_currency_tokens(sentence: Sentence, language: str = "en"):
             for context_token in get_token_context(token_values, pos=int(token.id_), left=2, right=2):
                 for queries, unit in currency_unit_mapping.items():
                     if context_token.lower() in queries:
-                        token.unit = unit['unit']
-                        token.multiplier = unit['multiplier']
-                        token.value_masked = '<NUM_CY>'
+                        token.unit = unit["unit"]
+                        token.multiplier = unit["multiplier"]
+                        token.value_masked = "<NUM_CY>"
                         token.is_currency = True
                         break
             if not token.unit:
                 token.unit = curreny_unit
-                token.multiplier = 1.
-                token.value_masked = '<NUM_CY>'
+                token.multiplier = 1.0
+                token.value_masked = "<NUM_CY>"
                 token.is_currency = True
 
 
@@ -167,12 +170,12 @@ def tag_numeric_cells(table: Table, language: str = "en"):
     for cell in table:
         cell_cleaned = clean(cell.value)
         try:
-            if cell_cleaned == cell.value or f'-{cell_cleaned}' == cell.value:
+            if cell_cleaned == cell.value or f"-{cell_cleaned}" == cell.value:
                 num_cell = float(cell_cleaned)
             else:
                 num_cell = convert_to_float(cell_cleaned)
 
-            if cell.value == 'nan':
+            if cell.value == "nan":
                 cell.is_numeric = False
             elif date_regex.search(cell_cleaned) or is_year(cell_cleaned):
                 cell.is_numeric = False
@@ -203,8 +206,9 @@ def tag_currency_cells(table: Table, language: str = "en"):
     curreny_unit = "EUR" if language == "de" else "USD"
 
     # rows that contain the word 'anhang'
-    anhang_row_indices = [i for i, row in enumerate(table.rows)
-                          if any(['anhang' in cell.value.lower() for cell in row])]
+    anhang_row_indices = [
+        i for i, row in enumerate(table.rows) if any(["anhang" in cell.value.lower() for cell in row])
+    ]
 
     if anhang_row_indices:
         # loop over all parts between anhang references
@@ -219,7 +223,7 @@ def tag_currency_cells(table: Table, language: str = "en"):
             # are anhang references, not currency.
             for col_ in table.cols:
                 col = col_[start:end]
-                is_anhang_col = any([True if 'anhang' in cell.value.lower() else False for cell in col])
+                is_anhang_col = any([True if "anhang" in cell.value.lower() else False for cell in col])
 
                 for cell in col:
                     cell.is_currency = cell.is_numeric and not is_anhang_col
@@ -239,41 +243,39 @@ def tag_currency_cells(table: Table, language: str = "en"):
     for cell in table.cells:
         if currency_regex.search(cell.value):
             col_unit = curreny_unit
-            col_multiplier = 1.
+            col_multiplier = 1.0
             for token in cell.words:
                 token_cleaned = clean(token.value)
                 if currency_regex.search(token_cleaned):
-                    token_cleaned = token_cleaned.replace('.1', '')
+                    token_cleaned = token_cleaned.replace(".1", "")
                 for queries, unit in currency_unit_mapping.items():
                     if token_cleaned.lower() in queries:
-                        col_unit = unit['unit']
-                        col_multiplier = unit['multiplier']
+                        col_unit = unit["unit"]
+                        col_multiplier = unit["multiplier"]
                         break
             if cell.col not in currency_unit_cells.keys():
                 currency_unit_cells[cell.col] = []
-            currency_unit_cells[cell.col].append({'row': cell.row,
-                                                  'unit': col_unit,
-                                                  'multiplier': col_multiplier})
+            currency_unit_cells[cell.col].append({"row": cell.row, "unit": col_unit, "multiplier": col_multiplier})
 
-    num_unique_units = len(set([row['unit'] for col in currency_unit_cells.values() for row in col]))
+    num_unique_units = len(set([row["unit"] for col in currency_unit_cells.values() for row in col]))
 
     #  Write unit in cell object
     if len(currency_unit_cells) == 1 or num_unique_units == 1:
         for cell in table.cells:
             if cell.is_currency:
-                cell.unit = currency_unit_cells[list(currency_unit_cells)[0]][0]['unit']
-                cell.multiplier = currency_unit_cells[list(currency_unit_cells)[0]][0]['multiplier']
+                cell.unit = currency_unit_cells[list(currency_unit_cells)[0]][0]["unit"]
+                cell.multiplier = currency_unit_cells[list(currency_unit_cells)[0]][0]["multiplier"]
 
     else:
         for col_id, col in currency_unit_cells.items():
             for cell in table.cells:
                 # if len(col) == 1:
                 if col_id == cell.col and cell.is_currency:
-                    cell.unit = col[0]['unit']
-                    cell.multiplier = col[0]['multiplier']
+                    cell.unit = col[0]["unit"]
+                    cell.multiplier = col[0]["multiplier"]
                 elif cell.is_currency:
                     cell.unit = curreny_unit
-                    cell.multiplier = 1.
+                    cell.multiplier = 1.0
                 else:
                     pass
 
@@ -282,7 +284,7 @@ def filter_corpus_by_ccy_sentences(corpus: Corpus) -> Corpus:
     for document in tqdm(corpus):
         segments_filtered = []
         for segment in document:
-            if segment.tag == 'text':
+            if segment.tag == "text":
                 sentences_filtered = []
                 for sentence in segment:
                     if any([token.is_currency for token in sentence]):
@@ -290,7 +292,7 @@ def filter_corpus_by_ccy_sentences(corpus: Corpus) -> Corpus:
                 segment.sentences = sentences_filtered
                 if segment.sentences:
                     segments_filtered.append(segment)
-            elif segment.tag == 'table':
+            elif segment.tag == "table":
                 segments_filtered.append(segment)
         document.segments = segments_filtered
     return corpus

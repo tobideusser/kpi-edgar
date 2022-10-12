@@ -6,9 +6,9 @@ import torch.nn as nn
 from transformers import AutoConfig, AutoModel
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-from edgar.trainer.utils import get_device
-from edgar.models.pooling import PoolingRNNGlobal, PoolingRNNLocal, token2word_embedding
 from edgar.models.encoders import Encoder
+from edgar.models.pooling import PoolingRNNGlobal, PoolingRNNLocal, token2word_embedding
+from edgar.trainer.utils import get_device
 
 logger = logging.getLogger(__name__)
 

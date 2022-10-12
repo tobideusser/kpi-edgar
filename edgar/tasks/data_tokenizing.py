@@ -6,7 +6,6 @@ from fluidml import Task
 from edgar.data_classes import Corpus
 from edgar.tokenizer import Tokenizer
 
-
 logger = logging.getLogger(__name__)
 
 

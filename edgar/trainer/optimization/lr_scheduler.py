@@ -1,9 +1,8 @@
-from importlib import import_module
 import inspect
+from importlib import import_module
 from typing import Dict, Any, Optional
 
 import torch
-
 
 LR_SCHEDULERS = {
     "exponential": "torch.optim.lr_scheduler.ExponentialLR",

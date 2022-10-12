@@ -1,5 +1,4 @@
-from copy import deepcopy
-from typing import List, Optional, Dict, Set
+from typing import List, Optional, Dict
 
 import numpy as np
 import torch

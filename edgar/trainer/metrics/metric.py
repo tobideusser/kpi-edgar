@@ -4,25 +4,21 @@ from typing import Iterable, Dict, Any
 
 import torch
 
-
 METRICS = {
     "ner_f1": "edgar.trainer.metrics.fscore.NERF1",
     "ner_f1_adjusted": "edgar.trainer.metrics.fscore_adjusted.NERF1Adjusted",
     "re_f1": "edgar.trainer.metrics.fscore.REF1",
-    "re_f1_adjusted": "edgar.trainer.metrics.fscore_adjusted.REF1Adjusted"
+    "re_f1_adjusted": "edgar.trainer.metrics.fscore_adjusted.REF1Adjusted",
 }
 
 
 class Metric(ABC):
     @classmethod
-    def from_config(cls,
-                    type_: str,
-                    *args,
-                    **kwargs):
+    def from_config(cls, type_: str, *args, **kwargs):
         try:
             callable_path = METRICS[type_]
-            parts = callable_path.split('.')
-            module_name = '.'.join(parts[:-1])
+            parts = callable_path.split(".")
+            module_name = ".".join(parts[:-1])
             class_name = parts[-1]
         except KeyError:
             raise KeyError(f'Metric "{type_}" is not implemented.')

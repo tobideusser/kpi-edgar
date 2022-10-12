@@ -17,12 +17,12 @@ logger = logging.getLogger(__name__)
 
 class EdgarParser:
     def __init__(
-            self,
-            entity_prefixes: List[str],
-            entity_formats: List[str],
-            path_to_data_folders: str,
-            debug_size: Optional[int] = None,
-            dataset_name: Optional[str] = None
+        self,
+        entity_prefixes: List[str],
+        entity_formats: List[str],
+        path_to_data_folders: str,
+        debug_size: Optional[int] = None,
+        dataset_name: Optional[str] = None,
     ):
         self.entity_prefixes = entity_prefixes
         self.entity_formats = entity_formats
@@ -30,30 +30,26 @@ class EdgarParser:
         self.debug_size = debug_size
         self.dataset_name = dataset_name if dataset_name else "EDGAR"
 
-    def _recursive_text_extract(
-            self,
-            et: ElementTree,
-            storage_gaap: Dict,
-            storage_values: Dict
-    ) -> List:
+    def _recursive_text_extract(self, et: ElementTree, storage_gaap: Dict, storage_values: Dict) -> List:
         text_parts = []
         for node in et:
             if "table" not in node.tag:
                 text_part = {
                     "text": html.unescape(node.text).replace("\xa0", " ").strip() if node.text else "",
                     "sub": self._recursive_text_extract(
-                        et=node,
-                        storage_gaap=storage_gaap,
-                        storage_values=storage_values
-                    )
+                        et=node, storage_gaap=storage_gaap, storage_values=storage_values
+                    ),
                 }
 
-                if any(entity_prefix == node.attrib.get("name", "") for entity_prefix in self.entity_prefixes) or \
-                        any(entity_format == node.attrib.get("format", "") for entity_format in self.entity_formats):
+                if any(entity_prefix == node.attrib.get("name", "") for entity_prefix in self.entity_prefixes) or any(
+                    entity_format == node.attrib.get("format", "") for entity_format in self.entity_formats
+                ):
                     text_part["entity"] = node.attrib
                     text_part["entity"]["gaap"] = storage_gaap.get(text_part["entity"]["name"], None)
                     if text_part["entity"]["gaap"] is not None:
-                        text_part["entity"]["value"] = storage_values.get(text_part["entity"]["gaap"]["master_id"], None)
+                        text_part["entity"]["value"] = storage_values.get(
+                            text_part["entity"]["gaap"]["master_id"], None
+                        )
                 else:
                     text_part["entity"] = None
                 text_part["tail"] = html.unescape(node.tail).replace("\xa0", " ").strip() if node.tail else ""
@@ -63,13 +59,7 @@ class EdgarParser:
                     text_parts.append(text_part["sub"])
         return text_parts
 
-    def _parse_edgar_entry(
-            self,
-            file_htm: str,
-            file_cal: str,
-            file_lab: str,
-            file_def: str
-    ) -> Dict[str, List]:
+    def _parse_edgar_entry(self, file_htm: str, file_cal: str, file_lab: str, file_def: str) -> Dict[str, List]:
         # file_htm = "/cluster/edgar_filings/aapl-20200926.htm"
         # file_cal = "/cluster/edgar_filings/aapl-20200926_cal.xml"
         # file_lab = "/cluster/edgar_filings/aapl-20200926_lab.xml"
@@ -88,7 +78,7 @@ class EdgarParser:
         files_list = [
             FilingTuple(file_cal, r"{http://www.xbrl.org/2003/linkbase}calculationLink", "calculation"),
             FilingTuple(file_def, r"{http://www.xbrl.org/2003/linkbase}definitionLink", "definition"),
-            FilingTuple(file_lab, r"{http://www.xbrl.org/2003/linkbase}labelLink", "label")
+            FilingTuple(file_lab, r"{http://www.xbrl.org/2003/linkbase}labelLink", "label"),
         ]
 
         # Labels come in two forms, those I want and those I don't want.
@@ -112,7 +102,7 @@ class EdgarParser:
                     for child_element in element.iter():
 
                         # split the label to remove the namespace component, this will return a list.
-                        element_split_label = child_element.tag.split('}')
+                        element_split_label = child_element.tag.split("}")
 
                         # The first element is the namespace, and the second element is a label.
                         # namespace = element_split_label[0]
@@ -122,7 +112,7 @@ class EdgarParser:
                         if label in parse:
 
                             # define the item type label
-                            element_type_label = file.namespace_label + '_' + label
+                            element_type_label = file.namespace_label + "_" + label
 
                             # initalize a smaller dictionary that will house all the content from that element.
                             dict_storage = {"item_type": element_type_label}
@@ -186,7 +176,7 @@ class EdgarParser:
 
         # parsing tables first
         tree = lh.fromstring(bytes(file_htm, encoding="utf8"))
-        tables = tree.xpath('//table')
+        tables = tree.xpath("//table")
         for tab in tables:
             table = Table.from_html(tab)
             doc["table"].append(table)
@@ -216,14 +206,13 @@ class EdgarParser:
                     text = {
                         "text": html.unescape(node.text).replace("\xa0", " ").strip() if node.text else "",
                         "sub": self._recursive_text_extract(
-                            node,
-                            storage_gaap=storage_gaap,
-                            storage_values=storage_values
-                        )
+                            node, storage_gaap=storage_gaap, storage_values=storage_values
+                        ),
                     }
 
-                    if any(entity_prefix in node.attrib.get("name", "") for entity_prefix in self.entity_prefixes) or \
-                            any(entity_ft == node.attrib.get("format", "") for entity_ft in self.entity_formats):
+                    if any(
+                        entity_prefix in node.attrib.get("name", "") for entity_prefix in self.entity_prefixes
+                    ) or any(entity_ft == node.attrib.get("format", "") for entity_ft in self.entity_formats):
                         text["entity"] = node.attrib
                         text["entity"]["gaap"] = storage_gaap.get(text["entity"]["name"], None)
                         if text["entity"]["gaap"] is not None:
@@ -236,9 +225,7 @@ class EdgarParser:
 
     @staticmethod
     def recursive_transform_subparts(
-            sub: List[Union[Dict, List]],
-            text: str = "",
-            entities: Optional[List[EdgarEntity]] = None
+        sub: List[Union[Dict, List]], text: str = "", entities: Optional[List[EdgarEntity]] = None
     ) -> Tuple[str, List[EdgarEntity]]:
 
         if entities is None:
@@ -254,45 +241,47 @@ class EdgarParser:
                 text += text_part["text"].replace("  ", " ") + (" " if text_part["text"] != "" else "")
 
                 if text_part["entity"]:
-                    entities.append(EdgarEntity(
-                        start_char=start,
-                        end_char=len(text),
-                        id_=text_part["entity"]["id"],
-                        name=text_part["entity"]["name"],
-                        value=text_part["text"],
-                        context_ref=text_part["entity"].get("contextRef", None),
-                        continued_at=text_part["entity"].get("continuedAt", None),
-                        escape=bool(text_part["entity"].get("continuedAt", None)),
-                        gaap_id=text_part["entity"]["gaap"].get("id", None)
-                        if "gaap" in text_part["entity"] and text_part["entity"]["gaap"] is not None else None,
-                        gaap_master_id=text_part["entity"]["gaap"].get("master_id", None)
-                        if "gaap" in text_part["entity"] and text_part["entity"]["gaap"] is not None else None,
-                        label_id=text_part["entity"]["value"].get("label_id", None)
-                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None,
-                        location_id=text_part["entity"]["value"].get("location_id", None)
-                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None,
-                        us_gaap_id=text_part["entity"]["value"].get("us_gaap_id", None)
-                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None,
-                        us_gaap_value=text_part["entity"]["value"].get("us_gaap_value", None)
-                        if "value" in text_part["entity"] and text_part["entity"]["value"] is not None else None
-                    ))
+                    entities.append(
+                        EdgarEntity(
+                            start_char=start,
+                            end_char=len(text),
+                            id_=text_part["entity"]["id"],
+                            name=text_part["entity"]["name"],
+                            value=text_part["text"],
+                            context_ref=text_part["entity"].get("contextRef", None),
+                            continued_at=text_part["entity"].get("continuedAt", None),
+                            escape=bool(text_part["entity"].get("continuedAt", None)),
+                            gaap_id=text_part["entity"]["gaap"].get("id", None)
+                            if "gaap" in text_part["entity"] and text_part["entity"]["gaap"] is not None
+                            else None,
+                            gaap_master_id=text_part["entity"]["gaap"].get("master_id", None)
+                            if "gaap" in text_part["entity"] and text_part["entity"]["gaap"] is not None
+                            else None,
+                            label_id=text_part["entity"]["value"].get("label_id", None)
+                            if "value" in text_part["entity"] and text_part["entity"]["value"] is not None
+                            else None,
+                            location_id=text_part["entity"]["value"].get("location_id", None)
+                            if "value" in text_part["entity"] and text_part["entity"]["value"] is not None
+                            else None,
+                            us_gaap_id=text_part["entity"]["value"].get("us_gaap_id", None)
+                            if "value" in text_part["entity"] and text_part["entity"]["value"] is not None
+                            else None,
+                            us_gaap_value=text_part["entity"]["value"].get("us_gaap_value", None)
+                            if "value" in text_part["entity"] and text_part["entity"]["value"] is not None
+                            else None,
+                        )
+                    )
 
                 if text_part["sub"]:
                     text, entities = EdgarParser.recursive_transform_subparts(
-                        sub=text_part["sub"],
-                        text=text,
-                        entities=entities
+                        sub=text_part["sub"], text=text, entities=entities
                     )
                 text += text_part["tail"].replace("  ", " ") + (" " if text_part["tail"] != "" else "")
 
             else:
                 # assume text_part is a list, pass the whole list to recursive_transform_subparts() to loop through
                 # it again
-                text, entities = EdgarParser.recursive_transform_subparts(
-                    sub=text_part,
-                    text=text,
-                    entities=entities
-                )
+                text, entities = EdgarParser.recursive_transform_subparts(sub=text_part, text=text, entities=entities)
         return text, entities
 
     def transform_to_dataclasses(self, parsed_data: Dict) -> Corpus:
@@ -320,32 +309,31 @@ class EdgarParser:
                         continued_at=seg["entity"].get("continuedAt", None),
                         escape=bool(seg["entity"].get("continuedAt", None)),
                         gaap_id=seg["entity"]["gaap"].get("id", None)
-                        if "gaap" in seg["entity"] and seg["entity"]["gaap"] is not None else None,
+                        if "gaap" in seg["entity"] and seg["entity"]["gaap"] is not None
+                        else None,
                         gaap_master_id=seg["entity"]["gaap"].get("master_id", None)
-                        if "gaap" in seg["entity"] and seg["entity"]["gaap"] is not None else None,
+                        if "gaap" in seg["entity"] and seg["entity"]["gaap"] is not None
+                        else None,
                         label_id=seg["entity"]["value"].get("label_id", None)
-                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None,
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None
+                        else None,
                         location_id=seg["entity"]["value"].get("location_id", None)
-                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None,
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None
+                        else None,
                         us_gaap_id=seg["entity"]["value"].get("us_gaap_id", None)
-                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None,
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None
+                        else None,
                         us_gaap_value=seg["entity"]["value"].get("us_gaap_value", None)
-                        if "value" in seg["entity"] and seg["entity"]["value"] is not None else None
+                        if "value" in seg["entity"] and seg["entity"]["value"] is not None
+                        else None,
                     )
                 else:
                     textblock_entity = None
-                segments.append(Paragraph(
-                    id_=i,
-                    value=text,
-                    textblock_entity=textblock_entity,
-                    edgar_entities=entities,
-                    tag="text"
-                ))
+                segments.append(
+                    Paragraph(id_=i, value=text, textblock_entity=textblock_entity, edgar_entities=entities, tag="text")
+                )
                 i += 1
-            documents.append(Document(
-                id_=key,
-                segments=segments
-            ))
+            documents.append(Document(id_=key, segments=segments))
 
         corpus = Corpus(documents=documents, name=self.dataset_name)
 
@@ -376,9 +364,7 @@ class EdgarParser:
 
                     # get all documents
                     all_docs = re.findall(
-                        r"(?i)(?<=<DOCUMENT>)(.*?)(?=</DOCUMENT>)",
-                        string=raw_content,
-                        flags=re.DOTALL
+                        r"(?i)(?<=<DOCUMENT>)(.*?)(?=</DOCUMENT>)", string=raw_content, flags=re.DOTALL
                     )
 
                     # dict to store the content split into relevant sections
@@ -388,18 +374,12 @@ class EdgarParser:
                     for doc in all_docs:
 
                         # get the type
-                        doc_type = re.search(
-                            r"(?i)(?<=<TYPE>)(.*?)(?=<)",
-                            string=doc,
-                            flags=re.DOTALL
-                        )[0]
+                        doc_type = re.search(r"(?i)(?<=<TYPE>)(.*?)(?=<)", string=doc, flags=re.DOTALL)[0]
                         try:
                             if "10-K" in doc_type.upper():
 
                                 split_content["10-K"] = re.search(
-                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                    string=doc,
-                                    flags=re.DOTALL
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)", string=doc, flags=re.DOTALL
                                 )[0]
                                 # remove leading linebreaks if they exist
                                 while split_content["10-K"][0] == "\n":
@@ -408,9 +388,7 @@ class EdgarParser:
                             elif "CAL" in doc_type.upper():
 
                                 split_content["CAL"] = re.search(
-                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                    string=doc,
-                                    flags=re.DOTALL
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)", string=doc, flags=re.DOTALL
                                 )[0]
                                 # remove leading linebreaks if they exist
                                 while split_content["CAL"][0] == "\n":
@@ -419,9 +397,7 @@ class EdgarParser:
                             elif "LAB" in doc_type.upper():
 
                                 split_content["LAB"] = re.search(
-                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                    string=doc,
-                                    flags=re.DOTALL
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)", string=doc, flags=re.DOTALL
                                 )[0]
                                 # remove leading linebreaks if they exist
                                 while split_content["LAB"][0] == "\n":
@@ -430,9 +406,7 @@ class EdgarParser:
                             elif "DEF" in doc_type.upper():
 
                                 split_content["DEF"] = re.search(
-                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)",
-                                    string=doc,
-                                    flags=re.DOTALL
+                                    r"(?i)(?<=<XBRL>)(.*?)(?=</XBRL>)", string=doc, flags=re.DOTALL
                                 )[0]
                                 # remove leading linebreaks if they exist
                                 while split_content["DEF"][0] == "\n":
@@ -447,7 +421,7 @@ class EdgarParser:
                             file_htm=split_content["10-K"],
                             file_cal=split_content["CAL"],
                             file_lab=split_content["LAB"],
-                            file_def=split_content["DEF"]
+                            file_def=split_content["DEF"],
                         )
                         i += 1
                         pbar.update(1)
@@ -455,17 +429,3 @@ class EdgarParser:
         transformed_data = self.transform_to_dataclasses(parsed_data=parsed_data)
 
         return transformed_data
-
-
-def main():
-    ep = EdgarParser(
-        entity_prefixes=["us-gaap"],
-        entity_formats=["ixt:numdotdecimal", "ix:nonFraction"],
-        debug_size=10,
-        path_to_data_folders="/cluster/debug_edgar_filings"
-    )
-    ep.parse_data_folder()
-
-
-if __name__ == "__main__":
-    main()

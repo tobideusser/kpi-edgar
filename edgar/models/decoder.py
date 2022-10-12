@@ -3,7 +3,6 @@ from typing import Dict, Optional, List, Tuple
 import torch
 from torch import nn
 
-
 from edgar.data_classes import Labels
 from edgar.models.ner import NERDecoder
 from edgar.models.re import REDecoder

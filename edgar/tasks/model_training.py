@@ -1,25 +1,26 @@
 import json
 import logging
 import os
-from copy import deepcopy
-from typing import Dict, Union, Optional
 import pickle as pkl
+from copy import deepcopy
+from typing import Dict, Union
 
+import torch
 from fluidml.common import Task
+from sklearn.feature_extraction.text import TfidfVectorizer
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerFast
-import torch
-from sklearn.feature_extraction.text import TfidfVectorizer
+
+from edgar.annotation_merger import AnnotationMerger
 from edgar.data_classes import Corpus, Labels
+from edgar.data_loading import KPIRelationDataset, BatchCollator
+from edgar.models import JointNERAndREModel
 from edgar.trainer import Trainer
 from edgar.trainer.checkpointer import Checkpointer
 from edgar.trainer.evaluator import Evaluator
 from edgar.trainer.optimization import Optimizer, LearningRateScheduler
 from edgar.trainer.train_logger import TrainLogger
 from edgar.trainer.utils import set_device, set_seed_number, get_device, set_seeds
-from edgar.annotation_merger import AnnotationMerger
-from edgar.data_loading import KPIRelationDataset, BatchCollator
-from edgar.models import JointNERAndREModel
 
 logger = logging.getLogger(__name__)
 

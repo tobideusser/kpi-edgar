@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 
-
 from edgar.data_classes import Labels
 
 

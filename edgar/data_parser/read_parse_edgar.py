@@ -2,7 +2,7 @@ import collections
 import logging
 import re
 import xml.etree.ElementTree as ElementTree
-from typing import Tuple, List, Dict
+from typing import List, Dict
 
 
 logger = logging.getLogger(__name__)
@@ -12,11 +12,7 @@ ENTITY_FORMATS = ["ixt:numdotdecimal", "ix:nonFraction"]
 
 
 def recursive_text_extract(
-        et: ElementTree,
-        entity_prefixes: List[str],
-        entity_formats: List[str],
-        storage_gaap: Dict,
-        storage_values: Dict
+    et: ElementTree, entity_prefixes: List[str], entity_formats: List[str], storage_gaap: Dict, storage_values: Dict
 ) -> List:
     text_parts = []
     for node in et:
@@ -27,12 +23,13 @@ def recursive_text_extract(
                 entity_prefixes=entity_prefixes,
                 entity_formats=entity_formats,
                 storage_gaap=storage_gaap,
-                storage_values=storage_values
-            )
+                storage_values=storage_values,
+            ),
         }
 
-        if any(entity_prefix == node.attrib.get("name", "") for entity_prefix in entity_prefixes) or \
-                any(entity_format == node.attrib.get("format", "") for entity_format in entity_formats):
+        if any(entity_prefix == node.attrib.get("name", "") for entity_prefix in entity_prefixes) or any(
+            entity_format == node.attrib.get("format", "") for entity_format in entity_formats
+        ):
             text_part["entity"] = node.attrib
             text_part["entity"]["gaap"] = storage_gaap.get(text_part["entity"]["name"], None)
             if text_part["entity"]["gaap"] is not None:
@@ -74,9 +71,7 @@ def recursive_text_extract(
 #     return text, entity_list
 
 
-def extract_company_data(
-
-):
+def extract_company_data():
     pass
 
 
@@ -105,7 +100,7 @@ def main():
     files_list = [
         FilingTuple(file_cal, r"{http://www.xbrl.org/2003/linkbase}calculationLink", "calculation"),
         FilingTuple(file_def, r"{http://www.xbrl.org/2003/linkbase}definitionLink", "definition"),
-        FilingTuple(file_lab, r"{http://www.xbrl.org/2003/linkbase}labelLink", "label")
+        FilingTuple(file_lab, r"{http://www.xbrl.org/2003/linkbase}labelLink", "label"),
     ]
 
     # Labels come in two forms, those I want and those I don't want.
@@ -128,7 +123,7 @@ def main():
             for child_element in element.iter():
 
                 # split the label to remove the namespace component, this will return a list.
-                element_split_label = child_element.tag.split('}')
+                element_split_label = child_element.tag.split("}")
 
                 # The first element is the namespace, and the second element is a label.
                 namespace = element_split_label[0]
@@ -138,7 +133,7 @@ def main():
                 if label in parse:
 
                     # define the item type label
-                    element_type_label = file.namespace_label + '_' + label
+                    element_type_label = file.namespace_label + "_" + label
 
                     # initalize a smaller dictionary that will house all the content from that element.
                     dict_storage = {"item_type": element_type_label}
@@ -225,12 +220,13 @@ def main():
                         entity_prefixes=ENTITY_PREFIXES + ["aapl"],
                         entity_formats=ENTITY_FORMATS,
                         storage_gaap=storage_gaap,
-                        storage_values=storage_values
-                    )
+                        storage_values=storage_values,
+                    ),
                 }
 
-                if any(entity_prefix in node.attrib.get("name", "") for entity_prefix in ENTITY_PREFIXES) or \
-                        any(entity_format == node.attrib.get("format", "") for entity_format in ENTITY_FORMATS):
+                if any(entity_prefix in node.attrib.get("name", "") for entity_prefix in ENTITY_PREFIXES) or any(
+                    entity_format == node.attrib.get("format", "") for entity_format in ENTITY_FORMATS
+                ):
                     text["entity"] = node.attrib
                     text["entity"]["gaap"] = storage_gaap.get(text["entity"]["name"], None)
                     if text["entity"]["gaap"] is not None:
@@ -248,5 +244,5 @@ def main():
     print(end - start)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

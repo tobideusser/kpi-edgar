@@ -5,8 +5,8 @@ import torch
 from torch import nn
 
 from edgar.data_classes import Labels
-from edgar.trainer.utils import get_device, set_seeds
 from edgar.models.ner.iobes.decoding_utils import expand_inputs
+from edgar.trainer.utils import get_device, set_seeds
 
 logger = logging.getLogger(__name__)
 

@@ -1,15 +1,14 @@
-from copy import deepcopy
 import logging
+from copy import deepcopy
 from typing import List, Tuple, Dict, Optional, Union
 
-from fluidml.common import Task
-from transformers import AutoTokenizer
-from tqdm import tqdm
 import torch
+from fluidml.common import Task
+from tqdm import tqdm
+from transformers import AutoTokenizer
 
 from edgar.data_classes import Corpus
 from edgar.trainer.utils import set_seed_number, set_seeds
-
 
 logger = logging.getLogger(__name__)
 

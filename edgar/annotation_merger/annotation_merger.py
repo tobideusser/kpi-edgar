@@ -10,7 +10,6 @@ from tqdm import tqdm
 from edgar import ALLOWED_RELATIONS, ALLOWED_ENTITIES, IS_ENTITY_NUMERIC
 from edgar.data_classes import Corpus, Paragraph, Entity, Relation, Sentence, Labels
 
-
 # https://stackoverflow.com/questions/64264563/attributeerror-elementtree-object-has-no-attribute-getiterator-when-trying
 xlrd.xlsx.ensure_elementtree_imported(False, None)
 xlrd.xlsx.Element_has_iter = True
