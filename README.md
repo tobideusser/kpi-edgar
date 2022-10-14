@@ -21,10 +21,10 @@ The most up-to-date dataset will always be called ***kpi_edgar.xlsx***.
 If you use KPI-EDGAR in academic work, please cite it directly:
 
 ```
-@inproceedings{deusser2022kpi-edgar,
+@inproceedings{kpi-edgar,
   title={KPI-EDGAR: A Novel Dataset and Accompanying Metric for Relation Extraction from Financial Documents},
-  author={Deu{\ss}er, Tobias and Ali, Syed Musharraf and Nurchalifah, Desiana and Jacob, Basil and Bauckhage, Christian and Sifa, Rafet},
-  booktitle={Proc. ICMLA},
+  author={Deu{\ss}er, Tobias and Ali, Syed Musharraf, and Hillebrand, Lars and Nurchalifah, Desiana and Jacob, Basil and Bauckhage, Christian and Sifa, Rafet},
+  booktitle={Proc. ICMLA (to be published)},
   year={2022}
 }
 ```
