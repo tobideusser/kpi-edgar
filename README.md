@@ -16,6 +16,21 @@ and executing the ***run_train_pipeline.py*** located under ***/scripts***.
 If you simply want to download the KPI-EDGAR dataset, access the annotations and data from ***/data***. 
 The most up-to-date dataset will always be called ***kpi_edgar.xlsx***.
 
+# Test set performances
+
+We are maintaining a table with results on our test set. If you want your model listed here, simply send us your results 
+and how you want to be cited.
+
+| Model                 | Relation F<sub>1</sub> Score in % | Adjusted Relation F<sub>1</sub> Score in % |
+|:----------------------|:---------------------------------:|:------------------------------------------:|
+| KPI-BERT<sup>1</sup>  |               22.68               |                   43.76                    |
+| SpERT<sup>1</sup>     |               20.95               |                   40.04                    |
+| EDGAR–W2V<sup>1</sup> |               6.13                |                   19.71                    |
+| GloVe<sup>1</sup>     |               5.11                |                   17.18                    |
+
+<sup>1</sup>Baseline introduced in "KPI-EDGAR: A Novel Dataset 
+and Accompanying Metric for Relation Extraction from Financial Documents".
+
 # Citation
 
 If you use KPI-EDGAR in academic work, please cite it directly:
