@@ -39,7 +39,7 @@ If you use KPI-EDGAR in your academic work, please cite it directly:
 ```
 @inproceedings{kpi-edgar,
   title={KPI-EDGAR: A Novel Dataset and Accompanying Metric for Relation Extraction from Financial Documents},
-  author={Deu{\ss}er, Tobias and Ali, Syed Musharraf, and Hillebrand, Lars and Nurchalifah, Desiana and Jacob, Basil and Bauckhage, Christian and Sifa, Rafet},
+  author={Deu{\ss}er, Tobias and Ali, Syed Musharraf and Hillebrand, Lars and Nurchalifah, Desiana and Jacob, Basil and Bauckhage, Christian and Sifa, Rafet},
   booktitle={Proc. ICMLA},
   year={2022},
   doi={10.48550/arXiv.2210.09163}
