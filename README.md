@@ -2,7 +2,8 @@
 
 This repository lets you run the download, training, and evaluation process for the paper "KPI-EDGAR: A Novel Dataset 
 and Accompanying Metric for Relation Extraction from Financial Documents", to be published in the proceedings of the 
-IEEE International Conference on Machine Learning and Applications 2022. 
+IEEE International Conference on Machine Learning and Applications 2022. A preprint of the paper is available at 
+[arxiv](https://arxiv.org/abs/2210.09163).
 
 First, install all required packages by running ***pip install /path/to/setup.py***, preferably in a virtual environment.
 
@@ -40,6 +41,7 @@ If you use KPI-EDGAR in academic work, please cite it directly:
   title={KPI-EDGAR: A Novel Dataset and Accompanying Metric for Relation Extraction from Financial Documents},
   author={Deu{\ss}er, Tobias and Ali, Syed Musharraf, and Hillebrand, Lars and Nurchalifah, Desiana and Jacob, Basil and Bauckhage, Christian and Sifa, Rafet},
   booktitle={Proc. ICMLA (to be published)},
-  year={2022}
+  year={2022},
+  doi={10.48550/arXiv.2210.09163}
 }
 ```
