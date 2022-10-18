@@ -5,7 +5,9 @@ and Accompanying Metric for Relation Extraction from Financial Documents", to be
 IEEE International Conference on Machine Learning and Applications 2022. A preprint of the paper is available on 
 [arxiv](https://arxiv.org/abs/2210.09163).
 
-First, install all required packages by running ***pip install /path/to/setup.py***, preferably in a virtual environment.
+First, install all required packages by running ***pip install /path/to/setup.py***, preferably in a virtual 
+environment. NOTE: We used the most up-to-date branch of [fluidml](https://github.com/fluidml/fluidml) for this project,
+so you likely have to install the branch "run-info-access" from source.
 
 Then, download the data from the EDGAR database with the ***download_from_edgar.py*** located under the folder ***/scripts***.
 
