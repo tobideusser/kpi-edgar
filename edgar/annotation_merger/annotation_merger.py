@@ -680,5 +680,5 @@ class AnnotationMerger:
         if self.label_mapping is not None:
             corpus = self._map_annotations(corpus)
         labels = Labels.from_corpus(corpus)
-        corpus = AnnotationMerger._add_iobes_annotations(corpus, labels)
+        corpus = self._add_iobes_annotations(corpus, labels)
         return corpus, labels
