@@ -19,6 +19,9 @@ and executing the ***run_train_pipeline.py*** located under ***/scripts***.
 If you simply want to download the KPI-EDGAR dataset, access the annotations and data from ***/data***. 
 The most up-to-date dataset will always be called ***kpi_edgar.xlsx***.
 
+In ***/data***, there is also a "pre-parsed" json file titled ***kpi_edgar.json***, which includes IOBES tags and might 
+be easier to use for some.
+
 # Test set performances
 
 We are maintaining a table with results on our test set. If you want your model listed here, simply send us your results 
