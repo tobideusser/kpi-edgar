@@ -41,6 +41,7 @@ AnnotationMerging:
   ignore_noncritical_warnings: true
   skip_sentences_with_error: true
   parse_secondary_annotations: false
+  save_as_json: false
   label_mapping:
     kpi: 'kpi'
     kpi_coref: 'kpi_coref'
