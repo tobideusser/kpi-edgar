@@ -367,6 +367,13 @@ class Sentence:
             [Entity.from_dict(entity) for entity in entities_anno] if entities_anno is not None else None
         )
 
+        entities_anno_secondary = d.get("entities_anno_secondary", None)
+        d["entities_anno_secondary"] = (
+            [Entity.from_dict(entity) for entity in entities_anno_secondary]
+            if entities_anno_secondary is not None
+            else None
+        )
+
         entities_pred = d.get("entities_pred", None)
         d["entities_pred"] = (
             [Entity.from_dict(entity) for entity in entities_pred] if entities_pred is not None else None
@@ -375,6 +382,13 @@ class Sentence:
         relations_anno = d.get("relations_anno", None)
         d["relations_anno"] = (
             [Relation.from_dict(relation) for relation in relations_anno] if relations_anno is not None else None
+        )
+
+        relations_anno_secondary = d.get("relations_anno_secondary", None)
+        d["relations_anno_secondary"] = (
+            [Relation.from_dict(relation) for relation in relations_anno_secondary]
+            if relations_anno_secondary is not None
+            else None
         )
 
         relations_pred = d.get("relations_pred", None)
@@ -390,14 +404,24 @@ class Sentence:
         d["entities_anno"] = (
             [entity.to_dict() for entity in d["entities_anno"]] if self.entities_anno is not None else None
         )
+        d["entities_anno_secondary"] = (
+            [entity.to_dict() for entity in d["entities_anno_secondary"]]
+            if self.entities_anno_secondary is not None
+            else None
+        )
         d["entities_pred"] = (
             [entity.to_dict() for entity in d["entities_pred"]] if self.entities_pred is not None else None
         )
         d["relations_anno"] = (
-            [entity.to_dict() for entity in d["relations_anno"]] if self.relations_anno is not None else None
+            [relation.to_dict() for relation in d["relations_anno"]] if self.relations_anno is not None else None
+        )
+        d["relations_anno_secondary"] = (
+            [relation.to_dict() for relation in d["relations_anno_secondary"]]
+            if self.relations_anno_secondary is not None
+            else None
         )
         d["relations_pred"] = (
-            [entity.to_dict() for entity in d["relations_pred"]] if self.relations_pred is not None else None
+            [relation.to_dict() for relation in d["relations_pred"]] if self.relations_pred is not None else None
         )
         return d
 
