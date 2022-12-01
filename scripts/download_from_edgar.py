@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-USER_AGENT = "Tobias Deusser (tobias.deusser@iais.fraunhofer.de)"
+USER_AGENT = "ADD YOUR EMAIL HERE"
 TICKER_FILE = "../data/company_ticker/220120_nasdaq_ticker_above$200B.csv"
 COMPANY_TICKER = [
     "aapl",  # Apple
