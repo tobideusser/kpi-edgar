@@ -1,4 +1,4 @@
-# How to run
+## How to run
 
 This repository lets you run the download, training, and evaluation process for the paper "KPI-EDGAR: A Novel Dataset 
 and Accompanying Metric for Relation Extraction from Financial Documents", to be published in the proceedings of the 
@@ -14,7 +14,7 @@ Then, download the data from the EDGAR database with the ***download_from_edgar.
 Thereafter, kick of the training pipeline by adding the relevant folder to the config under the folder ***/config*** 
 and executing the ***run_train_pipeline.py*** located under ***/scripts***.
 
-# KPI-EDGAR dataset
+## KPI-EDGAR dataset
 
 If you simply want to download the KPI-EDGAR dataset, access the annotations and data from ***/data***. 
 The most up-to-date dataset will always be called ***kpi_edgar.xlsx***.
@@ -22,7 +22,7 @@ The most up-to-date dataset will always be called ***kpi_edgar.xlsx***.
 In ***/data***, there is also a "pre-parsed" json file titled ***kpi_edgar.json***, which includes IOBES tags and might 
 be easier to use for some.
 
-# Test set performances
+## Test set performances
 
 We are maintaining a table with results on our test set. If you want your model listed here, simply send us your results 
 and how you want to be cited.
@@ -37,7 +37,9 @@ and how you want to be cited.
 <sup>1</sup>Baseline introduced in "KPI-EDGAR: A Novel Dataset 
 and Accompanying Metric for Relation Extraction from Financial Documents".
 
-# Citation
+You can also check [PapersWithCode](https://paperswithcode.com/sota/joint-entity-and-relation-extraction-on-kpi) for this dataset.
+
+## Citation
 
 If you use KPI-EDGAR in your academic work, please cite it directly:
 
