@@ -1,7 +1,7 @@
 ## How to run
 
 This repository lets you run the download, training, and evaluation process for the paper "KPI-EDGAR: A Novel Dataset 
-and Accompanying Metric for Relation Extraction from Financial Documents", to be published in the proceedings of the 
+and Accompanying Metric for Relation Extraction from Financial Documents", published in the proceedings of the 
 IEEE International Conference on Machine Learning and Applications 2022. A preprint of the paper is available on 
 [arxiv](https://arxiv.org/abs/2210.09163).
 
@@ -44,11 +44,12 @@ You can also check [PapersWithCode](https://paperswithcode.com/sota/joint-entity
 If you use KPI-EDGAR in your academic work, please cite it directly:
 
 ```
-@inproceedings{kpi-edgar,
-  title={KPI-EDGAR: A Novel Dataset and Accompanying Metric for Relation Extraction from Financial Documents},
+@inproceedings{deusser2022kpiedgar,
   author={Deu{\ss}er, Tobias and Ali, Syed Musharraf and Hillebrand, Lars and Nurchalifah, Desiana and Jacob, Basil and Bauckhage, Christian and Sifa, Rafet},
-  booktitle={Proc. ICMLA},
+  booktitle={Proc. ICMLA}, 
+  title={{KPI-EDGAR}: A Novel Dataset and Accompanying Metric for Relation Extraction from Financial Documents}, 
   year={2022},
-  doi={10.48550/arXiv.2210.09163}
+  pages={1654-1659},
+  doi={10.1109/ICMLA55696.2022.00254}
 }
 ```
